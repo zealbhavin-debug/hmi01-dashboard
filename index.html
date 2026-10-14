@@ -70,6 +70,13 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .login label{display:block;font-size:13px;color:var(--text-secondary);margin:10px 0 4px}
 .login input{width:100%}
 .hidden{display:none!important}
+.alm{display:flex;align-items:center;gap:10px;border-radius:12px;padding:12px 16px;margin-bottom:12px;border:1px solid var(--border);background:var(--surface-1)}
+.alm .ico{font-size:20px;line-height:1}
+.alm b{font-weight:650}
+.alm.on{border-color:var(--critical);box-shadow:inset 4px 0 0 var(--critical)}
+.alm.off{box-shadow:inset 4px 0 0 var(--good)}
+.alm .grow{flex:1 1 auto}
+.alm small{color:var(--text-secondary)}
 table{border-collapse:collapse;width:100%;font-size:12px;font-variant-numeric:tabular-nums}
 th,td{text-align:right;padding:3px 6px;border-bottom:1px solid var(--grid)} th:first-child,td:first-child{text-align:left}
 details summary{cursor:pointer;font-size:13px;color:var(--text-secondary);margin-top:8px}
@@ -98,6 +105,12 @@ details summary{cursor:pointer;font-size:13px;color:var(--text-secondary);margin
     <button class="act ghost" id="btnTheme" title="Toggle theme" style="padding:4px 10px">◐</button>
     <button class="act ghost" id="btnLogout" style="padding:4px 10px">Log out</button>
   </header>
+
+  <div class="alm off" id="almBox" role="status" aria-live="assertive">
+    <span class="ico" id="almIco">✓</span>
+    <div class="grow"><b id="almTitle">No active alarm</b><br><small id="almSub">Waiting for alarm state…</small></div>
+    <button class="act ghost" id="btnNotify" style="padding:4px 10px">Enable phone alerts</button>
+  </div>
 
   <div class="grid">
     <div class="card"><div class="label">Temperature</div><div class="value"><span id="vTemp">–</span><span class="unit">°C</span></div><div class="sub">P_TEMP</div></div>
@@ -131,7 +144,9 @@ details summary{cursor:pointer;font-size:13px;color:var(--text-secondary);margin
       <div class="msg" id="ctlMsg"></div>
     </div>
     <div class="card">
-      <h2 style="font-size:15px;margin:0">Event log</h2>
+      <h2 style="font-size:15px;margin:0">Alarm history</h2>
+      <ul class="log" id="almLog" style="max-height:110px"><li>No alarms yet</li></ul>
+      <h2 style="font-size:15px;margin:12px 0 0">Event log</h2>
       <ul class="log" id="log"></ul>
     </div>
   </div>
@@ -199,7 +214,7 @@ function connect(u,p){
   var first=true;
   client.on('connect',function(){
     setBroker('good','Broker connected'); log('broker connected');
-    client.subscribe(BASE+'/telemetry',{qos:1});
+    client.subscribe(BASE+'/telemetry',{qos:1}); client.subscribe(BASE+'/alarm',{qos:1});
     if(first){first=false;$('loginView').classList.add('hidden');$('dashView').classList.remove('hidden');draw()}
   });
   client.on('reconnect',function(){setBroker('warning','Reconnecting…')});
@@ -210,7 +225,7 @@ function connect(u,p){
   });
   client.on('message',function(t,buf){
     var d; try{d=JSON.parse(buf.toString())}catch(e){log('bad JSON on '+t);return}
-    onTele(d);
+    if(t===BASE+'/alarm'){onAlarm(d,arguments[2]&&arguments[2].retain)} else onTele(d);
   });
 }
 
@@ -226,6 +241,44 @@ function onTele(d){
   } else { $('vSpSub').textContent='P_SP not published by HMI' }
   table(); draw(); hmiState();
 }
+
+var ALM_TEXT={101:'High temperature'}, almOn=null, almSince=0, almLimit=29; // HMI default; updated when ALM_LIMIT is published
+function onAlarm(d,retained){
+  var on=+d.ALM_ACTIVE===1, code=+d.ALM_CODE||0; if(isFinite(+d.ALM_LIMIT))almLimit=+d.ALM_LIMIT;
+  var lastTemp=pts.length?pts[pts.length-1].temp:null, prev=almOn;
+  if(on&&prev!==true)almSince=Date.now();
+  almOn=on;
+  if(on){ $('almBox').className='alm on'; $('almIco').textContent='⚠';
+    $('almTitle').textContent='ALARM '+code+' · '+(ALM_TEXT[code]||'Alarm');
+  } else { $('almBox').className='alm off'; $('almIco').textContent='✓'; $('almTitle').textContent='No active alarm'; }
+  almSub();
+  if(prev===null||on!==prev){
+    var txt=(prev===null?(on?'ACTIVE ':'NORMAL'):(on?'RAISED ':'CLEARED'))+(on?(code+' '+(ALM_TEXT[code]||'')):'')+(lastTemp!==null?' · '+fmt(lastTemp,1)+' °C':'')+(prev===null&&retained?' (state on connect)':'');
+    var L=$('almLog'); if(L.firstChild&&L.firstChild.textContent==='No alarms yet')L.innerHTML='';
+    var li=document.createElement('li'); li.textContent=ts()+'  '+txt; L.insertBefore(li,L.firstChild);
+    while(L.children.length>50)L.removeChild(L.lastChild);
+    log('alarm '+txt); if(on||prev!==null)notify(on,code,lastTemp);
+  }
+  draw();
+}
+function almSub(){
+  var lim=almLimit!==null?'limit '+fmt(almLimit,1)+' °C':'';
+  if(almOn){ var s=Math.round((Date.now()-almSince)/1000); $('almSub').textContent='Active for '+(s<60?s+' s':Math.floor(s/60)+' min '+(s%60)+' s')+(lim?' · '+lim:'') }
+  else $('almSub').textContent=lim?('Monitoring · '+lim):'Monitoring';
+}
+setInterval(function(){if(almOn)almSub()},1000);
+function notify(on,code,temp){
+  try{ if(navigator.vibrate&&on)navigator.vibrate([300,150,300]); }catch(e){}
+  try{ if(window.Notification&&Notification.permission==='granted'){
+    var body=on?((ALM_TEXT[code]||'Alarm')+(temp!==null?' – '+fmt(temp,1)+' °C':'')):'Alarm cleared';
+    new Notification(on?'HMI01 ALARM '+code:'HMI01 alarm cleared',{body:body,tag:'hmi01-alarm',renotify:true});
+  }}catch(e){ log('notification not shown: '+e.message) }
+}
+$('btnNotify').onclick=function(){
+  if(!window.Notification){$('btnNotify').textContent='Alerts not supported here';return}
+  Notification.requestPermission().then(function(p){ $('btnNotify').textContent=p==='granted'?'Alerts on':'Alerts blocked'; });
+};
+if(window.Notification&&Notification.permission==='granted')$('btnNotify').textContent='Alerts on';
 
 function hmiState(){
   var d=$('dotHmi');
@@ -277,6 +330,7 @@ function draw(){
   var L=40,R=12,T=10,B=24, now=Date.now(), t0=now-rangeMin*60000;
   var vis=pts.filter(function(p){return p.t>=t0&&isFinite(p.temp)});
   var lo=20,hi=30; if(vis.length){lo=Math.min.apply(null,vis.map(function(p){return p.temp}));hi=Math.max.apply(null,vis.map(function(p){return p.temp}))}
+  if(almLimit!==null&&vis.length){hi=Math.max(hi,almLimit+0.5)}
   if(hi-lo<2){var m=(hi+lo)/2;lo=m-1;hi=m+1}
   var st=niceStep(hi-lo); lo=Math.floor(lo/st)*st; hi=Math.ceil(hi/st)*st;
   var x=function(t){return L+(t-t0)/(now-t0)*(W-L-R)}, y=function(v){return T+(hi-v)/(hi-lo)*(H-T-B)};
@@ -288,6 +342,8 @@ function draw(){
   if(vis.length<1){c.textAlign='center';c.textBaseline='middle';c.fillText('Waiting for data…',(L+W-R)/2,(T+H-B)/2);geo=null;return}
   c.strokeStyle=css('--series-1'); c.lineWidth=2; c.lineJoin='round'; c.beginPath();
   vis.forEach(function(p,i){var xx=x(p.t),yy=y(p.temp); i?c.lineTo(xx,yy):c.moveTo(xx,yy)}); c.stroke();
+  if(almLimit!==null&&almLimit>=lo&&almLimit<=hi){var ly=Math.round(y(almLimit))+.5;c.save();c.setLineDash([6,4]);c.strokeStyle=css('--critical');c.lineWidth=1;c.beginPath();c.moveTo(L,ly);c.lineTo(W-R,ly);c.stroke();c.restore();
+    c.fillStyle=css('--text-secondary');c.textAlign='left';c.textBaseline='bottom';c.fillText('Alarm limit '+fmt(almLimit,1),L+4,ly-2)}
   var lp=vis[vis.length-1]; c.fillStyle=css('--series-1'); c.beginPath(); c.arc(x(lp.t),y(lp.temp),4,0,7); c.fill();
   geo={vis:vis,x:x,y:y,L:L,R:R,T:T,B:B,W:W,H:H};
   if(hoverX!==null){
@@ -304,7 +360,7 @@ window.addEventListener('resize',draw);
 setInterval(function(){if(hoverX===null)draw()},5000);
 
 if(Q.get('autologin')==='1' && su && sp){connect(su,sp)}
-window.__dash={pts:pts,onTele:onTele};
+window.__dash={pts:pts,onTele:onTele,onAlarm:onAlarm};
 })();
 </script>
 </body>
