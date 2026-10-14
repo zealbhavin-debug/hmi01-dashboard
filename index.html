@@ -131,6 +131,13 @@ details summary{cursor:pointer;font-size:13px;color:var(--text-secondary);margin
   <div class="row2">
     <div class="card">
       <h2 style="font-size:15px;margin:0">Remote control</h2>
+      <div class="ctl" id="healthRow" style="margin-top:6px">
+        <span class="pill"><span class="dot" id="hRem"></span><span id="tRem">Remote: ?</span></span>
+        <span class="pill"><span class="dot" id="hDb"></span>SQL</span>
+        <span class="pill"><span class="dot" id="hWeb"></span>Web</span>
+        <span class="pill"><span class="dot" id="hPlc"></span>PLC</span>
+        <span class="pill" title="Commands the HMI refused (remote off or out of range)">Rejected <b id="vRej" style="margin-left:4px">–</b></span>
+      </div>
       <div class="label" style="margin-top:8px">Setpoint (0 – 100)</div>
       <div class="ctl">
         <input id="spIn" type="number" min="0" max="100" step="0.1" placeholder="e.g. 42.5">
@@ -172,7 +179,7 @@ var URL_ = Q.get('url') || 'wss://l9b0f47c.ala.asia-southeast1.emqxsl.com:8084/m
 var BASE = Q.get('base') || 'jct/iot/hmi01';
 var STALE_MS = 15000, KEEP_MS = 3600*1000;
 var $ = function(id){return document.getElementById(id)};
-var client = null, pts = [], lastMsg = 0, rangeMin = 5, lastSentSp = null;
+var client = null, pts = [], lastMsg = 0, rangeMin = 5, lastSentSp = null, remoteEn = null, lastRej = null, rejAtSend = null;
 
 function store(k,v){try{ if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v);}catch(e){}}
 function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
@@ -239,7 +246,21 @@ function onTele(d){
   if(p.sp!==null&&isFinite(p.sp)){$('vSp').textContent=fmt(p.sp,1);
     if(lastSentSp!==null){ if(Math.abs(p.sp-lastSentSp)<0.01){$('ctlMsg').textContent='HMI applied setpoint '+fmt(p.sp,1);lastSentSp=null} }
   } else { $('vSpSub').textContent='P_SP not published by HMI' }
+  health(d);
   table(); draw(); hmiState();
+}
+function health(d){
+  if(d.SYS_HEALTH===undefined){$('healthRow').classList.add('hidden');return}
+  var h=+d.SYS_HEALTH|0; function set(id,ok){$(id).className='dot '+(ok?'good':'critical')}
+  set('hDb',h&2); set('hWeb',h&4); set('hPlc',h&8);
+  remoteEn=(d.REMOTE_EN!==undefined?+d.REMOTE_EN:((h&16)?1:0))===1;
+  $('hRem').className='dot '+(remoteEn?'good':'warning'); $('tRem').textContent=remoteEn?'Remote enabled':'Remote disabled on HMI';
+  ['btnSp','btnReset','spIn'].forEach(function(i){$(i).disabled=!remoteEn});
+  if(!remoteEn)$('ctlMsg').textContent='Operator has remote control switched OFF on the HMI.';
+  else if($('ctlMsg').textContent.indexOf('switched OFF')>=0)$('ctlMsg').textContent='';
+  if(d.CMD_REJ!==undefined){var r=+d.CMD_REJ; $('vRej').textContent=r;
+    if(rejAtSend!==null&&r>rejAtSend){$('ctlMsg').textContent='HMI REJECTED the command (remote off or out of range).';log('HMI rejected command');lastSentSp=null;rejAtSend=null}
+    lastRej=r}
 }
 
 var ALM_TEXT={101:'High temperature'}, almOn=null, almSince=0, almLimit=29; // HMI default; updated when ALM_LIMIT is published
@@ -301,7 +322,7 @@ $('btnSp').onclick=function(){
   if(!client||!client.connected){$('ctlMsg').textContent='Not connected.';return}
   client.publish(BASE+'/cmd',JSON.stringify({CMD_SP:v}),{qos:1},function(err){
     $('ctlMsg').textContent=err?('Send failed: '+err.message):('Sent setpoint '+v+' – waiting for HMI…');
-    if(!err){lastSentSp=v;log('sent CMD_SP '+v)}
+    if(!err){lastSentSp=v;rejAtSend=lastRej;log('sent CMD_SP '+v)}
   });
 };
 function resetConfirm(show){['btnResetYes','btnResetNo'].forEach(function(i){$(i).classList.toggle('hidden',!show)});$('btnReset').classList.toggle('hidden',show)}
@@ -311,7 +332,7 @@ $('btnResetYes').onclick=function(){
   resetConfirm(false);
   if(!client||!client.connected){$('ctlMsg').textContent='Not connected.';return}
   client.publish(BASE+'/cmd',JSON.stringify({CMD_RESET:1}),{qos:1},function(err){
-    $('ctlMsg').textContent=err?('Send failed: '+err.message):'Counter reset sent.'; if(!err)log('sent CMD_RESET');
+    $('ctlMsg').textContent=err?('Send failed: '+err.message):'Counter reset sent.'; if(!err){rejAtSend=lastRej;log('sent CMD_RESET')}
   });
 };
 
