@@ -2,163 +2,422 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HMI01 Live</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JCT Smart Line</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
+/* Layout: control-room board. Sticky top bar + tabs; Live = system map strip, KPI row, trend, control + log.
+   How it works = big map with node detail, read/write paths, tag map. Add a tag = two recipes. */
 :root{
-  color-scheme:light;
-  --bg:#f3f3f1; --surface-1:#fcfcfb; --border:#e1e0dc;
-  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#7a7975;
-  --series-1:#2a78d6; --grid:#e8e7e3;
-  --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
-  --btn:#2a78d6; --btn-text:#ffffff;
+  --bg:#edf1f3; --panel:#ffffff; --panel-2:#f5f8f9; --line:#d3dce0; --grid:#e4eaed;
+  --ink:#0f1b21; --ink-2:#465860; --ink-3:#76878e;
+  --accent:#0a7ea4; --accent-soft:#d9eef5; --cmd:#c2510f; --cmd-soft:#fbe7da;
+  --good:#1b8a3e; --warn:#b07800; --crit:#c93232;
+  --good-soft:#dcf1e3; --warn-soft:#f8ecd0; --crit-soft:#f8dddd;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --r:10px; --shadow:0 1px 2px rgba(15,27,33,.06),0 4px 14px rgba(15,27,33,.05);
 }
-@media (prefers-color-scheme:dark){
-  :root:where(:not([data-theme="light"])){
-    color-scheme:dark;
-    --bg:#111110; --surface-1:#1a1a19; --border:#2e2e2c;
-    --text-primary:#f0efec; --text-secondary:#c3c2b7; --text-muted:#8f8e88;
-    --series-1:#3987e5; --grid:#2a2a28; --btn:#3987e5;
-  }
-}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0a1114; --panel:#101a1f; --panel-2:#142128; --line:#233540; --grid:#1b2a31;
+  --ink:#e4edf0; --ink-2:#a6b8bf; --ink-3:#6f848c;
+  --accent:#3bb4d6; --accent-soft:#11303b; --cmd:#f08a4b; --cmd-soft:#3a2416;
+  --good:#3cc46a; --warn:#e3ad35; --crit:#ef5d5d;
+  --good-soft:#123222; --warn-soft:#352a10; --crit-soft:#3a1717;
+  --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}}
 :root[data-theme="dark"]{
-  color-scheme:dark;
-  --bg:#111110; --surface-1:#1a1a19; --border:#2e2e2c;
-  --text-primary:#f0efec; --text-secondary:#c3c2b7; --text-muted:#8f8e88;
-  --series-1:#3987e5; --grid:#2a2a28; --btn:#3987e5;
-}
+  --bg:#0a1114; --panel:#101a1f; --panel-2:#142128; --line:#233540; --grid:#1b2a31;
+  --ink:#e4edf0; --ink-2:#a6b8bf; --ink-3:#6f848c;
+  --accent:#3bb4d6; --accent-soft:#11303b; --cmd:#f08a4b; --cmd-soft:#3a2416;
+  --good:#3cc46a; --warn:#e3ad35; --crit:#ef5d5d;
+  --good-soft:#123222; --warn-soft:#352a10; --crit-soft:#3a1717;
+  --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text-primary);
-  font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:960px;margin:0 auto;padding:16px}
-header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-bottom:16px}
-h1{font-size:20px;margin:0;font-weight:650;flex:1 1 auto}
-.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
-  background:var(--surface-1);border:1px solid var(--border);font-size:13px;color:var(--text-secondary)}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--text-muted)}
-.dot.good{background:var(--good)} .dot.warning{background:var(--warning)} .dot.critical{background:var(--critical)}
-.card{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:16px}
-.grid{display:grid;gap:12px;grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px}
-@media (max-width:720px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.label{font-size:13px;color:var(--text-secondary);margin-bottom:4px}
-.value{font-size:30px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.1}
-.unit{font-size:15px;color:var(--text-secondary);font-weight:500;margin-left:2px}
-.sub{font-size:12px;color:var(--text-muted);margin-top:4px}
-.chart-card{margin-bottom:12px}
-.chart-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
-.chart-head h2{font-size:15px;margin:0;font-weight:600}
-.seg button{background:none;border:1px solid var(--border);color:var(--text-secondary);padding:3px 10px;font-size:12px;cursor:pointer}
-.seg button:first-child{border-radius:6px 0 0 6px} .seg button:last-child{border-radius:0 6px 6px 0}
-.seg button.on{background:var(--series-1);border-color:var(--series-1);color:#fff}
-.chart{position:relative;height:220px;margin-top:8px}
-canvas{width:100%;height:100%;display:block}
-.tip{position:absolute;pointer-events:none;background:var(--surface-1);border:1px solid var(--border);
-  border-radius:8px;padding:6px 8px;font-size:12px;color:var(--text-primary);box-shadow:0 2px 8px rgba(0,0,0,.12);display:none;white-space:nowrap}
-.row2{display:grid;gap:12px;grid-template-columns:1fr 1fr}
-@media (max-width:720px){.row2{grid-template-columns:1fr}}
-.ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
-input[type=number],input[type=text],input[type=password]{font:inherit;padding:8px 10px;border-radius:8px;
-  border:1px solid var(--border);background:var(--bg);color:var(--text-primary);min-width:0}
-input[type=number]{width:110px}
-button.act{font:inherit;padding:8px 14px;border-radius:8px;border:0;background:var(--btn);color:var(--btn-text);cursor:pointer;font-weight:600}
-button.act.ghost{background:none;border:1px solid var(--border);color:var(--text-primary)}
-button.act.danger{background:var(--critical)}
-button:disabled{opacity:.45;cursor:not-allowed}
-.msg{font-size:13px;color:var(--text-secondary);min-height:18px;margin-top:6px}
-.log{font:12px/1.5 ui-monospace,Consolas,monospace;color:var(--text-secondary);max-height:160px;overflow:auto;margin:8px 0 0;padding:0;list-style:none}
-.login{max-width:420px;margin:40px auto}
-.login label{display:block;font-size:13px;color:var(--text-secondary);margin:10px 0 4px}
-.login input{width:100%}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--ink);font:15px/1.45 var(--f-body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 32px}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:.01em;margin:0;text-wrap:balance}
+h2{font-size:19px} h3{font-size:16px}
+.mono{font-family:var(--f-mono);font-size:.86em}
+.muted{color:var(--ink-3)} .sec{color:var(--ink-2)}
 .hidden{display:none!important}
-.alm{display:flex;align-items:center;gap:10px;border-radius:12px;padding:12px 16px;margin-bottom:12px;border:1px solid var(--border);background:var(--surface-1)}
-.alm .ico{font-size:20px;line-height:1}
-.alm b{font-weight:650}
-.alm.on{border-color:var(--critical);box-shadow:inset 4px 0 0 var(--critical)}
-.alm.off{box-shadow:inset 4px 0 0 var(--good)}
-.alm .grow{flex:1 1 auto}
-.alm small{color:var(--text-secondary)}
-table{border-collapse:collapse;width:100%;font-size:12px;font-variant-numeric:tabular-nums}
-th,td{text-align:right;padding:3px 6px;border-bottom:1px solid var(--grid)} th:first-child,td:first-child{text-align:left}
-details summary{cursor:pointer;font-size:13px;color:var(--text-secondary);margin-top:8px}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topin{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.brand{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0}
+.logo{width:34px;height:34px;border-radius:8px;background:var(--ink);color:var(--bg);display:grid;place-items:center;font:700 13px var(--f-display);letter-spacing:.04em;flex:none}
+.brand h1{font-size:21px;line-height:1.1}
+.brand small{display:block;color:var(--ink-3);font-size:12.5px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ink-3);flex:none}
+.dot.good{background:var(--good);box-shadow:0 0 0 3px var(--good-soft)} .dot.warn{background:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)} .dot.bad{background:var(--crit);box-shadow:0 0 0 3px var(--crit-soft)}
+.mode{font:600 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--accent-soft);color:var(--accent)}
+.mode.demo{background:var(--cmd-soft);color:var(--cmd)}
+.ibtn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:13px}
+.ibtn:hover{border-color:var(--ink-3)}
+.tabs{display:flex;gap:4px;max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-x:auto}
+.tab{background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px 7px;cursor:pointer;font:600 15px var(--f-display);color:var(--ink-3);white-space:nowrap}
+.tab.on{color:var(--ink);border-color:var(--accent)}
+
+/* generic */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.pad{padding:16px}
+.stack{display:flex;flex-direction:column;gap:14px;margin-top:16px}
+.row>*{min-width:0}
+.row{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.eyebrow{font:500 11.5px var(--f-mono);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.btn{border:0;border-radius:8px;padding:9px 16px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+.btn.cmd{background:var(--cmd)}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--ink)}
+.btn.danger{background:var(--crit)}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+input[type=number],input[type=text],input[type=password]{padding:9px 11px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);min-width:0}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.msg{font-size:13px;min-height:19px;color:var(--ink-2)}
+.msg.good{color:var(--good)} .msg.bad{color:var(--crit)} .msg.warn{color:var(--warn)}
+
+/* ---------- system map ---------- */
+.map{display:grid;grid-template-columns:auto minmax(40px,1fr) auto minmax(40px,1fr) auto minmax(40px,1fr) auto minmax(40px,1fr) auto;align-items:center;gap:0}
+.node{position:relative;width:148px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px 10px 9px;cursor:pointer;text-align:left;transition:border-color .2s,box-shadow .2s}
+.node:hover{border-color:var(--ink-3)}
+.node.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.node .ic{width:30px;height:30px;color:var(--ink-2);display:block;margin-bottom:6px}
+.node b{display:block;font:600 15px/1.15 var(--f-display)}
+.node .sub{display:block;font-size:11.5px;color:var(--ink-3);line-height:1.3;margin-top:1px}
+.node .st{display:flex;align-items:center;gap:5px;margin-top:7px;font-size:11.5px;color:var(--ink-2);line-height:1.25}
+.node .chip{position:absolute;top:8px;right:8px;font:600 10px var(--f-mono);letter-spacing:.05em;padding:2px 6px;border-radius:5px;background:var(--panel);border:1px solid var(--line);color:var(--ink-3)}
+.node .chip.on{background:var(--good-soft);border-color:transparent;color:var(--good)}
+.node .chip.off{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.node.flash-good{animation:fg 1.2s}
+.node.flash-bad{animation:fb 1.2s}
+@keyframes fg{0%,60%{box-shadow:0 0 0 5px var(--good-soft);border-color:var(--good)}}
+@keyframes fb{0%,60%{box-shadow:0 0 0 5px var(--crit-soft);border-color:var(--crit)}}
+.link{position:relative;align-self:stretch;display:flex;flex-direction:column;justify-content:center;padding:0 4px}
+.wire{position:relative;height:4px;border-radius:2px;background:var(--line)}
+.link.good .wire{background:color-mix(in srgb,var(--good) 45%,var(--line))}
+.link.warn .wire{background:repeating-linear-gradient(90deg,var(--warn) 0 8px,transparent 8px 14px)}
+.link.bad .wire{background:repeating-linear-gradient(90deg,var(--crit) 0 8px,transparent 8px 14px)}
+.link.hl .wire{box-shadow:0 0 0 3px var(--accent-soft)}
+.link.hlw .wire{box-shadow:0 0 0 3px var(--cmd-soft)}
+.lbl{font:500 10.5px/1.25 var(--f-mono);color:var(--ink-3);text-align:center;margin-top:7px;letter-spacing:.02em}
+.lbl.la{margin:0 0 7px}
+.pkt{position:absolute;top:50%;left:0;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);animation:hx .75s linear forwards;pointer-events:none}
+.pkt.cmd{background:var(--cmd);box-shadow:0 0 0 4px var(--cmd-soft);animation-name:hxr}
+@keyframes hx{from{left:0}to{left:100%}}
+@keyframes hxr{from{left:100%}to{left:0}}
+.map.compact .node{width:132px;padding:8px 9px}
+.map.compact .node .ic{width:24px;height:24px;margin-bottom:4px}
+@media (max-width:860px){
+  .map{grid-template-columns:1fr}
+  .node,.map.compact .node{width:100%;display:grid;grid-template-columns:30px 1fr;column-gap:10px;align-items:center}
+  .node .ic,.map.compact .node .ic{grid-row:span 3;margin:0;width:26px;height:26px}
+  .link{flex-direction:row;align-items:center;justify-content:flex-start;height:46px;padding:0 0 0 22px;gap:10px}
+  .wire{width:4px;height:100%;order:-1;flex:none}
+  .lbl,.lbl.la{margin:0;text-align:left}
+  .pkt{left:50%;top:0;margin:-5.5px 0 0 -5.5px;animation-name:vy}
+  .pkt.cmd{animation-name:vyr}
+  .link.warn .wire{background:repeating-linear-gradient(180deg,var(--warn) 0 8px,transparent 8px 14px)}
+  .link.bad .wire{background:repeating-linear-gradient(180deg,var(--crit) 0 8px,transparent 8px 14px)}
+}
+@keyframes vy{from{top:0}to{top:100%}}
+@keyframes vyr{from{top:100%}to{top:0}}
+@media (prefers-reduced-motion:reduce){.pkt{animation-duration:.01s}.node.flash-good,.node.flash-bad{animation:none}}
+.mapleg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink-3);margin-top:12px}
+.mapleg span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:18px;height:4px;border-radius:2px;display:inline-block}
+
+/* ---------- live ---------- */
+.alarm{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r);border:1px solid var(--line);background:var(--panel)}
+.alarm.on{background:var(--crit-soft);border-color:var(--crit)}
+.alarm .big{font:700 22px var(--f-display);color:var(--crit)}
+.kpis{display:grid;gap:14px;grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{padding:14px 16px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi .name{font-size:13px;color:var(--ink-2);display:flex;justify-content:space-between;gap:6px}
+.kpi .name .mono{color:var(--ink-3);font-size:10.5px;padding-top:2px}
+.kpi .val{font:600 clamp(28px,7.5vw,38px)/1.05 var(--f-display);font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .val small{font:500 16px var(--f-body);color:var(--ink-3);margin-left:4px}
+.kpi .foot{font-size:12px;color:var(--ink-3);min-height:17px}
+.kpi canvas{width:100%;height:30px;display:block;margin-top:4px}
+.state{display:inline-flex;align-items:center;gap:10px;font-size:clamp(24px,6.5vw,34px)}
+.state .lamp{width:16px;height:16px;border-radius:50%;background:var(--ink-3)}
+.state.run .lamp{background:var(--good);box-shadow:0 0 0 5px var(--good-soft)}
+.state.stop .lamp{background:var(--warn);box-shadow:0 0 0 5px var(--warn-soft)}
+.chart{position:relative;height:240px;margin-top:10px}
+.chart canvas{width:100%;height:100%;display:block}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px;box-shadow:var(--shadow);white-space:nowrap;display:none}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:none;border:0;padding:4px 10px;font-size:12.5px;cursor:pointer;color:var(--ink-2)}
+.seg button.on{background:var(--accent);color:#fff}
+.headrow{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+.lock{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);margin:10px 0 12px}
+.lock b{font-family:var(--f-display);font-size:16px}
+.lock.on{background:var(--good-soft);border-color:transparent}
+.lock.off{background:var(--warn-soft);border-color:transparent}
+.wctl{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid var(--grid)}
+.wctl:first-of-type{border-top:0}
+.wctl .lab{font-size:13px;color:var(--ink-2);display:flex;justify-content:space-between;gap:8px}
+.log{list-style:none;margin:6px 0 0;padding:0;font:12px/1.55 var(--f-mono);color:var(--ink-2);max-height:220px;overflow:auto}
+.log li{display:flex;gap:8px} .log li i{font-style:normal;color:var(--ink-3);flex:none}
+.log li.cmd{color:var(--cmd)} .log li.bad{color:var(--crit)} .log li.good{color:var(--good)}
+pre.json{margin:8px 0 0;padding:10px 12px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);font:12px/1.5 var(--f-mono);overflow-x:auto;color:var(--ink-2);white-space:pre}
+pre.json .k{color:var(--accent)} pre.json .w{color:var(--cmd)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{font:500 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.tscroll{overflow-x:auto}
+tr.tag{cursor:pointer} tr.tag:hover td{background:var(--panel-2)} tr.tag.sel td{background:var(--accent-soft)}
+.dir{display:inline-block;font:600 10.5px var(--f-mono);padding:2px 6px;border-radius:5px;letter-spacing:.04em;white-space:nowrap}
+.dir.r{background:var(--accent-soft);color:var(--accent)} .dir.w{background:var(--cmd-soft);color:var(--cmd)}
+
+/* how it works */
+.detail{display:grid;gap:16px;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+@media (max-width:860px){.detail{grid-template-columns:1fr}}
+.detail h3{margin-bottom:4px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px;margin:8px 0 0}
+.kv dt{color:var(--ink-3)} .kv dd{margin:0;font-family:var(--f-mono);font-size:12.5px;overflow-wrap:anywhere}
+.journey{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
+.journey span{padding:5px 9px;border-radius:7px;background:var(--panel-2);border:1px solid var(--line);font-size:12.5px}
+.journey span.w{border-color:var(--cmd);}
+.journey em{font-style:normal;color:var(--ink-3)}
+ol.steps{margin:8px 0 0;padding:0;list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:10px}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start}
+ol.steps li::before{content:counter(s);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:600 13px var(--f-display);background:var(--accent-soft);color:var(--accent)}
+ol.steps.w li::before{background:var(--cmd-soft);color:var(--cmd)}
+ol.steps b{font-weight:600}
+.locks{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))}
+.locks div{padding:12px 14px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line)}
+.locks b{display:block;font-family:var(--f-display);font-size:16px;margin-bottom:2px}
+code{font-family:var(--f-mono);font-size:.88em;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+pre.code{margin:8px 0 0;padding:12px 14px;border-radius:8px;background:var(--ink);color:var(--bg);font:12.5px/1.55 var(--f-mono);overflow-x:auto}
+.copy{margin-top:6px}
+.where{display:inline-block;font:600 10.5px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-2);margin-bottom:4px}
+
+/* login */
+.login{max-width:440px;margin:7vh auto 0;padding:24px}
+.login label{display:block;font-size:13px;color:var(--ink-2);margin:12px 0 4px}
+.login input[type=text],.login input[type=password]{width:100%}
+.or{display:flex;align-items:center;gap:10px;color:var(--ink-3);font-size:12px;margin:16px 0 12px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.demo-op{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;border:1px dashed var(--cmd);background:var(--cmd-soft);font-size:13px}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-<section id="loginView" class="card login">
-  <h1 style="margin-bottom:4px">HMI01 Live</h1>
-  <div class="sub" id="brokerLine"></div>
-  <label for="u">Broker username</label>
+
+<!-- ============ LOGIN ============ -->
+<section id="loginView" class="panel login">
+  <div class="brand" style="margin-bottom:6px"><div class="logo">JCT</div><div><h1>Smart Line</h1><small>Inovance HMI → Cloud → Phone</small></div></div>
+  <p class="sec" style="margin:10px 0 0;font-size:14px">Live view of the line from anywhere. Log in with the dashboard user, or watch the demo with simulated data.</p>
+  <label for="u">Username</label>
   <input id="u" type="text" autocomplete="username">
-  <label for="p">Broker password</label>
+  <label for="p">Password</label>
   <input id="p" type="password" autocomplete="current-password">
-  <label style="display:flex;gap:6px;align-items:center;margin-top:12px"><input id="rem" type="checkbox"> Remember on this device</label>
-  <div class="ctl"><button class="act" id="btnLogin">Connect</button></div>
+  <label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input id="rem" type="checkbox"> Remember on this device</label>
+  <div class="ctl" style="margin-top:14px"><button class="btn" id="btnLogin">Connect to the line</button></div>
   <div class="msg" id="loginMsg"></div>
+  <div class="or">or</div>
+  <button class="btn ghost" id="btnDemo" style="width:100%">Watch the demo (no login, simulated data)</button>
+  <p class="muted" style="font-size:12px;margin:12px 0 0" id="brokerLine"></p>
 </section>
 
-<section id="dashView" class="hidden">
-  <header>
-    <h1>HMI01 · IT7070E</h1>
-    <span class="pill"><span class="dot" id="dotBroker"></span><span id="txtBroker">Broker</span></span>
-    <span class="pill"><span class="dot" id="dotHmi"></span><span id="txtHmi">HMI</span></span>
-    <button class="act ghost" id="btnTheme" title="Toggle theme" style="padding:4px 10px">◐</button>
-    <button class="act ghost" id="btnLogout" style="padding:4px 10px">Log out</button>
-  </header>
+<!-- ============ APP ============ -->
+<div id="appView" class="hidden">
+<div class="top">
+  <div class="topin">
+    <div class="brand"><div class="logo">JCT</div><div><h1>Smart Line</h1><small id="lineName">Line 1 · Curing oven</small></div></div>
+    <span class="mode" id="modeTag">Live</span>
+    <span class="pill"><span class="dot" id="dCloud"></span><span id="tCloud">Cloud</span></span>
+    <span class="pill"><span class="dot" id="dHmi"></span><span id="tHmi">HMI</span></span>
+    <button class="ibtn" id="btnTheme" title="Switch light / dark">◐</button>
+    <button class="ibtn" id="btnOut">Log out</button>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab on" data-tab="live" role="tab">Live</button>
+    <button class="tab" data-tab="how" role="tab">How it works</button>
+    <button class="tab" data-tab="add" role="tab">Add a tag</button>
+  </nav>
+</div>
 
-  <div class="alm off" id="almBox" role="status" aria-live="assertive">
-    <span class="ico" id="almIco">✓</span>
-    <div class="grow"><b id="almTitle">No active alarm</b><br><small id="almSub">Waiting for alarm state…</small></div>
-    <button class="act ghost" id="btnNotify" style="padding:4px 10px">Enable phone alerts</button>
+<main class="wrap">
+<!-- ---------- LIVE ---------- -->
+<section id="tab-live" class="stack">
+  <div class="alarm" id="almBox" role="status" aria-live="assertive">
+    <span class="dot good" id="almDot"></span>
+    <div style="flex:1 1 auto;min-width:0"><b id="almTitle">No active alarm</b><div class="muted" style="font-size:12.5px" id="almSub">Monitoring</div></div>
+    <button class="ibtn" id="btnNotify">Phone alerts</button>
   </div>
 
-  <div class="grid">
-    <div class="card"><div class="label">Temperature</div><div class="value"><span id="vTemp">–</span><span class="unit">°C</span></div><div class="sub">P_TEMP</div></div>
-    <div class="card"><div class="label">Counter</div><div class="value" id="vCount">–</div><div class="sub">P_COUNT</div></div>
-    <div class="card"><div class="label">Machine</div><div class="value" style="display:flex;align-items:center;gap:8px"><span class="dot" id="dotRun" style="width:16px;height:16px"></span><span id="vRun">–</span></div><div class="sub">P_RUN</div></div>
-    <div class="card"><div class="label">Active setpoint</div><div class="value" id="vSp">–</div><div class="sub" id="vSpSub">P_SP</div></div>
+  <div class="panel pad">
+    <div class="headrow"><h2>Connection path</h2><span class="muted" style="font-size:12.5px">Blue dot = data going up · orange dot = your command going down</span></div>
+    <div class="map compact" data-map style="margin-top:12px"></div>
   </div>
 
-  <div class="card chart-card">
-    <div class="chart-head">
-      <h2>Temperature trend (°C)</h2>
-      <div class="seg" id="range"><button data-m="5" class="on">5 min</button><button data-m="15">15 min</button><button data-m="60">1 h</button></div>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="panel pad">
+    <div class="headrow">
+      <h2 id="trendTitle">Trend</h2>
+      <div class="ctl"><div class="seg" id="trendSel"></div><div class="seg" id="range"><button data-m="5" class="on">5 min</button><button data-m="15">15 min</button><button data-m="60">1 h</button></div></div>
     </div>
     <div class="chart" id="chartBox"><canvas id="chart"></canvas><div class="tip" id="tip"></div></div>
-    <details><summary>Table view (last 20)</summary><table><thead><tr><th>Time</th><th>Temp °C</th><th>Count</th><th>Run</th></tr></thead><tbody id="tbl"></tbody></table></details>
+    <details style="margin-top:6px"><summary class="muted" style="font-size:13px;cursor:pointer">Table view (last 20 messages)</summary><div class="tscroll"><table id="histTbl"></table></div></details>
   </div>
 
-  <div class="row2">
-    <div class="card">
-      <h2 style="font-size:15px;margin:0">Remote control</h2>
-      <div class="ctl" id="healthRow" style="margin-top:6px">
-        <span class="pill"><span class="dot" id="hRem"></span><span id="tRem">Remote: ?</span></span>
-        <span class="pill"><span class="dot" id="hDb"></span>SQL</span>
-        <span class="pill"><span class="dot" id="hWeb"></span>Web</span>
-        <span class="pill"><span class="dot" id="hPlc"></span>PLC</span>
-        <span class="pill" title="Commands the HMI refused (remote off or out of range)">Rejected <b id="vRej" style="margin-left:4px">–</b></span>
-      </div>
-      <div class="label" style="margin-top:8px">Setpoint (0 – 100)</div>
-      <div class="ctl">
-        <input id="spIn" type="number" min="0" max="100" step="0.1" placeholder="e.g. 42.5">
-        <button class="act" id="btnSp">Send setpoint</button>
-      </div>
-      <div class="ctl">
-        <button class="act ghost" id="btnReset">Reset counter</button>
-        <button class="act danger hidden" id="btnResetYes">Confirm reset</button>
-        <button class="act ghost hidden" id="btnResetNo">Cancel</button>
-      </div>
+  <div class="row">
+    <div class="panel pad">
+      <h2>Remote control</h2>
+      <div class="lock" id="lockBox"><span class="dot" id="lockDot"></span><div><b id="lockTitle">Waiting for HMI…</b><div class="muted" style="font-size:12.5px" id="lockSub">The operator decides on the HMI whether the cloud may change anything.</div></div></div>
+      <div class="demo-op hidden" id="demoOp"><span><b>Demo:</b> you are also the operator at the machine.</span><button class="btn cmd" id="btnDemoRemote" style="padding:6px 12px">Press "Remote ON" on HMI</button></div>
+      <div id="writeCtls"></div>
       <div class="msg" id="ctlMsg"></div>
     </div>
-    <div class="card">
-      <h2 style="font-size:15px;margin:0">Alarm history</h2>
-      <ul class="log" id="almLog" style="max-height:110px"><li>No alarms yet</li></ul>
-      <h2 style="font-size:15px;margin:12px 0 0">Event log</h2>
+    <div class="panel pad">
+      <div class="headrow"><h2>Messages</h2><span class="pill">Rejected commands <b id="vRej" style="margin-left:4px">–</b></span></div>
       <ul class="log" id="log"></ul>
+      <div class="eyebrow" style="margin-top:12px">Last message from HMI · <span class="mono" id="lastTopic">–</span></div>
+      <pre class="json" id="lastJson">waiting…</pre>
     </div>
   </div>
-  <div class="sub" style="margin-top:12px" id="foot"></div>
+
+  <div class="panel pad hidden" id="moreBox">
+    <div class="headrow"><h2>More tags</h2><span class="muted" style="font-size:12.5px">Published by the HMI but not yet named on this page. Add them to TAGS to give them a name and unit.</span></div>
+    <div class="kpis" id="more" style="margin-top:12px"></div>
+  </div>
 </section>
+
+<!-- ---------- HOW IT WORKS ---------- -->
+<section id="tab-how" class="stack hidden">
+  <div class="panel pad">
+    <div class="headrow"><h2>The five parts and how they talk</h2><span class="muted" style="font-size:12.5px">Tap a box to see what it does and how it is set up</span></div>
+    <div class="map" data-map data-big style="margin-top:14px"></div>
+    <div class="mapleg">
+      <span><span class="sw" style="background:color-mix(in srgb,var(--good) 45%,var(--line))"></span>link working</span>
+      <span><span class="sw" style="background:repeating-linear-gradient(90deg,var(--warn) 0 5px,transparent 5px 8px)"></span>not connected / simulated</span>
+      <span><span class="sw" style="background:repeating-linear-gradient(90deg,var(--crit) 0 5px,transparent 5px 8px)"></span>link down</span>
+      <span><span class="dot" style="background:var(--accent)"></span>data up</span>
+      <span><span class="dot" style="background:var(--cmd)"></span>command down</span>
+    </div>
+  </div>
+
+  <div class="panel pad detail" id="nodeDetail"></div>
+
+  <div class="row">
+    <div class="panel pad">
+      <span class="dir r">READ · machine → phone</span>
+      <h2 style="margin-top:6px">How a value reaches your phone</h2>
+      <ol class="steps">
+        <li><div><b>PLC</b> measures it and keeps it in a register, e.g. oven temperature ×10 in <code>4x100</code>.</div></li>
+        <li><div><b>HMI</b> reads the register over RS485 Modbus every cycle and scales it (<code>÷10</code> → <code>P_TEMP</code>).</div></li>
+        <li><div><b>HMI</b> packs the selected tags into one JSON message every 5 s and publishes it to topic <code>jct/iot/hmi01/telemetry</code>.</div></li>
+        <li><div><b>Edge PC</b> passes the message from the LAN to the internet over an encrypted link (TLS, port 8883). It also stores one row per minute in SQL.</div></li>
+        <li><div><b>Cloud broker</b> hands it to every logged-in screen that subscribed to that topic.</div></li>
+        <li><div><b>This page</b> shows <code>P_TEMP</code> as "Oven temperature" because one line in its TAGS list says so.</div></li>
+      </ol>
+    </div>
+    <div class="panel pad">
+      <span class="dir w">WRITE · phone → machine</span>
+      <h2 style="margin-top:6px">How a command reaches the machine</h2>
+      <ol class="steps w">
+        <li><div><b>You</b> type 42.5 and press Send. The page checks the range (0–100) first.</div></li>
+        <li><div><b>Page</b> publishes <code>{"CMD_SP": 42.5}</code> to <code>jct/iot/hmi01/cmd</code>. Only the dashboard user is allowed to write there.</div></li>
+        <li><div><b>Cloud → Edge PC → HMI</b>: the HMI is subscribed to that topic, so <code>CMD_SP</code> becomes 42.5 inside the HMI.</div></li>
+        <li><div><b>HMI script</b> checks: is <b>Remote ON</b> on the HMI, and is the value 0–100? If not, it refuses and counts it in <code>CMD_REJ</code>.</div></li>
+        <li><div><b>Accepted</b>: the value goes to <code>P_SP</code> and on to the PLC register <code>4x110</code>.</div></li>
+        <li><div><b>Proof</b>: the next telemetry message carries the new <code>P_SP</code>, so the page shows "Applied". No guessing.</div></li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="panel pad">
+    <div class="headrow"><h2>Tag map</h2><span class="muted" style="font-size:12.5px">Tap a row to light up its route on the map above</span></div>
+    <div class="tscroll" style="margin-top:8px"><table id="tagTbl"></table></div>
+    <div id="journey" class="journey"></div>
+  </div>
+
+  <div class="panel pad">
+    <h2>Three safety locks</h2>
+    <div class="locks" style="margin-top:10px">
+      <div><b>1 · Login per device</b><span class="sec" style="font-size:13.5px">HMI, PC and phone each have their own user and password on the cloud broker. Traffic to the cloud is encrypted.</span></div>
+      <div><b>2 · Topic rights</b><span class="sec" style="font-size:13.5px">The HMI may only send data and read commands. The dashboard may read data and write commands. Nothing else, no other machine.</span></div>
+      <div><b>3 · Operator has the last word</b><span class="sec" style="font-size:13.5px">Remote control is OFF after every power-up. The HMI checks every command (Remote ON + range) before it touches the PLC.</span></div>
+    </div>
+  </div>
+
+  <div class="panel pad">
+    <h2>Timing</h2>
+    <div class="tscroll"><table style="margin-top:6px">
+      <tr><th>What</th><th>How often</th><th>Where</th></tr>
+      <tr><td>Live values to cloud</td><td>every 5 s</td><td class="mono">jct/iot/hmi01/telemetry</td></tr>
+      <tr><td>Alarm state</td><td>on change (kept by broker)</td><td class="mono">jct/iot/hmi01/alarm</td></tr>
+      <tr><td>Commands</td><td>when sent</td><td class="mono">jct/iot/hmi01/cmd</td></tr>
+      <tr><td>History row in SQL</td><td>every 60 s</td><td class="mono">hmi_test.dbo.IOTHIST</td></tr>
+      <tr><td>Report on HMI (last hour)</td><td>every 30 s</td><td class="mono">HMI screen 2</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<!-- ---------- ADD A TAG ---------- -->
+<section id="tab-add" class="stack hidden">
+  <div class="panel pad">
+    <h2>Add a tag in four steps</h2>
+    <p class="sec" style="margin:6px 0 0;max-width:68ch">Example: show the <b>line speed</b> (PLC register <code>D120</code> = Modbus <code>4x120</code>, m/min) on the phone. Steps 1–3 are in the PLC and InoTouchPad. Step 4 is optional: the dashboard already shows any new tag automatically under "More tags".</p>
+  </div>
+  <div class="row">
+    <div class="panel pad">
+      <span class="dir r">READ tag · show a value</span>
+      <ol class="steps" style="margin-top:12px">
+        <li><div><span class="where">PLC</span><br>Write the value into a free register, e.g. <code>D120</code> = line speed in m/min.</div></li>
+        <li><div><span class="where">InoTouchPad · Tags</span><br>Add tag <code>LINE_SPEED</code> · connection <code>Connection_2</code> (Modbus) · address <code>4x120</code> · Int16. For an HMI-only value, use an internal tag instead.</div></li>
+        <li><div><span class="where">InoTouchPad · Data Service → MQTT → MQTTPublish</span><br>Open <code>pub_telemetry</code> → Items → <b>+</b> → pick <code>LINE_SPEED</code>. The item name becomes the JSON key. Compile and download.</div></li>
+        <li><div><span class="where">Dashboard (optional)</span><br>Open <code>dashboard.html</code>, add one line to <code>TAGS</code>, run <code>publish.bat</code>:
+          <pre class="code" id="codeRead">{ key:'LINE_SPEED', name:'Line speed', unit:'m/min', dec:0, dir:'read', widget:'kpi', trend:true,
+  plc:'4x120 (D120)', hmi:'LINE_SPEED', sql:'' },</pre>
+          <button class="ibtn copy" data-copy="codeRead">Copy line</button></div></li>
+      </ol>
+      <p class="muted" style="font-size:12.5px;margin:12px 0 0">Want it in SQL history too: RemoteDB → WriteRemoteDB <code>IOTHIST</code> → add the tag, and add the column once in SQL: <code>ALTER TABLE IOTHIST ADD LINE_SPEED real</code>.</p>
+    </div>
+    <div class="panel pad">
+      <span class="dir w">WRITE tag · change a value</span>
+      <ol class="steps w" style="margin-top:12px">
+        <li><div><span class="where">InoTouchPad · Tags</span><br>Add internal tag <code>CMD_SPEED</code> (Float). It is the "mailbox" for the cloud. The PLC tag stays separate: <code>PLC_SPEED_SP</code> at <code>4x121</code>.</div></li>
+        <li><div><span class="where">Data Service → MQTT → MQTTSubscribe</span><br>Topic <code>jct/iot/hmi01/cmd</code> → Items → <b>+</b> <code>CMD_SPEED</code>.</div></li>
+        <li><div><span class="where">Script_1 (safety check)</span><br>Copy only when Remote is ON and the value is in range, then clear the mailbox:
+          <pre class="code" id="codeScript">if (SmartTags('CMD_SPEED') * 1 != -1) {
+if (SmartTags('REMOTE_EN') * 1 == 1 &amp;&amp; SmartTags('CMD_SPEED') * 1 &gt;= 0 &amp;&amp; SmartTags('CMD_SPEED') * 1 &lt;= 60) {
+SmartTags('PLC_SPEED_SP') = SmartTags('CMD_SPEED') * 1;
+} else {
+SmartTags('CMD_REJ') = SmartTags('CMD_REJ') * 1 + 1;
+}
+SmartTags('CMD_SPEED') = -1;
+}</pre>
+          <button class="ibtn copy" data-copy="codeScript">Copy script</button></div></li>
+        <li><div><span class="where">Dashboard</span><br>One line in <code>TAGS</code> gives you an input box with range check. Publish <code>PLC_SPEED_SP</code> in pub_telemetry too, so the page can show "Applied":
+          <pre class="code" id="codeWrite">{ key:'CMD_SPEED', name:'Set line speed', unit:'m/min', dir:'write', widget:'number',
+  min:0, max:60, step:1, ack:'PLC_SPEED_SP', hmi:'CMD_SPEED → check → PLC_SPEED_SP', plc:'4x121' },</pre>
+          <button class="ibtn copy" data-copy="codeWrite">Copy line</button></div></li>
+      </ol>
+    </div>
+  </div>
+  <div class="panel pad">
+    <h2>Rules that keep it simple</h2>
+    <div class="locks" style="margin-top:10px">
+      <div><b>Same name everywhere</b><span class="sec" style="font-size:13.5px">HMI tag name = JSON key = SQL column = TAGS key. One name, no mapping table.</span></div>
+      <div><b>Read and write are separate tags</b><span class="sec" style="font-size:13.5px">The cloud writes only into <code>CMD_…</code> mailboxes. Only the HMI script writes to PLC tags.</span></div>
+      <div><b>Reading needs no script</b><span class="sec" style="font-size:13.5px">Adding a value to pub_telemetry is enough. Writing always goes through the Remote ON + range check.</span></div>
+    </div>
+  </div>
+</section>
+<p class="muted" style="font-size:12px;margin-top:20px" id="foot"></p>
+</main>
 </div>
 
 <script>"use strict";var mqtt=(()=>{var ys=Object.defineProperty;var Kg=Object.getOwnPropertyDescriptor;var Gg=Object.getOwnPropertyNames;var Qg=Object.prototype.hasOwnProperty;var _e=(t,e)=>()=>(t&&(e=t(t=0)),e);var M=(t,e)=>()=>(e||t((e={exports:{}}).exports,e),e.exports),Jt=(t,e)=>{for(var r in e)ys(t,r,{get:e[r],enumerable:!0})},Yg=(t,e,r,i)=>{if(e&&typeof e=="object"||typeof e=="function")for(let n of Gg(e))!Qg.call(t,n)&&n!==r&&ys(t,n,{get:()=>e[n],enumerable:!(i=Kg(e,n))||i.enumerable});return t};var X=t=>Yg(ys({},"__esModule",{value:!0}),t);var _=_e(()=>{});var B={};Jt(B,{_debugEnd:()=>yu,_debugProcess:()=>gu,_events:()=>Ou,_eventsCount:()=>xu,_exiting:()=>Yl,_fatalExceptions:()=>cu,_getActiveHandles:()=>eu,_getActiveRequests:()=>Zl,_kill:()=>ru,_linkedBinding:()=>Gl,_maxListeners:()=>ku,_preload_modules:()=>Cu,_rawDebug:()=>zl,_startProfilerIdleNotifier:()=>bu,_stopProfilerIdleNotifier:()=>wu,_tickCallback:()=>pu,abort:()=>Eu,addListener:()=>Mu,allowedNodeEnvironmentFlags:()=>lu,arch:()=>xl,argv:()=>Ul,argv0:()=>Ru,assert:()=>uu,binding:()=>Fl,chdir:()=>Hl,config:()=>Jl,cpuUsage:()=>$i,cwd:()=>$l,debugPort:()=>Tu,default:()=>$u,dlopen:()=>Xl,domain:()=>Ql,emit:()=>Du,emitWarning:()=>jl,env:()=>Ll,execArgv:()=>Nl,execPath:()=>Iu,exit:()=>ou,features:()=>fu,hasUncaughtExceptionCaptureCallback:()=>du,hrtime:()=>Wi,kill:()=>su,listeners:()=>Wu,memoryUsage:()=>nu,moduleLoadList:()=>Kl,nextTick:()=>Pl,off:()=>Uu,on:()=>wt,once:()=>Lu,openStdin:()=>au,pid:()=>Su,platform:()=>Ml,ppid:()=>Au,prependListener:()=>ju,prependOnceListener:()=>Fu,reallyExit:()=>tu,release:()=>Vl,removeAllListeners:()=>qu,removeListener:()=>Nu,resourceUsage:()=>iu,setSourceMapsEnabled:()=>Bu,setUncaughtExceptionCaptureCallback:()=>hu,stderr:()=>mu,stdin:()=>vu,stdout:()=>_u,title:()=>Ol,umask:()=>Wl,uptime:()=>Pu,version:()=>ql,versions:()=>Dl});function _s(t){throw new Error("Node.js process "+t+" is not supported by JSPM core outside of Node.js")}function Jg(){!Lr||!Xt||(Lr=!1,Xt.length?bt=Xt.concat(bt):Fi=-1,bt.length&&Bl())}function Bl(){if(!Lr){var t=setTimeout(Jg,0);Lr=!0;for(var e=bt.length;e;){for(Xt=bt,bt=[];++Fi<e;)Xt&&Xt[Fi].run();Fi=-1,e=bt.length}Xt=null,Lr=!1,clearTimeout(t)}}function Pl(t){var e=new Array(arguments.length-1);if(arguments.length>1)for(var r=1;r<arguments.length;r++)e[r-1]=arguments[r];bt.push(new kl(t,e)),bt.length===1&&!Lr&&setTimeout(Bl,0)}function kl(t,e){this.fun=t,this.array=e}function Ee(){}function Gl(t){_s("_linkedBinding")}function Xl(t){_s("dlopen")}function Zl(){return[]}function eu(){return[]}function uu(t,e){if(!t)throw new Error(e||"assertion error")}function du(){return!1}function Pu(){return Lt.now()/1e3}function Wi(t){var e=Math.floor((Date.now()-Lt.now())*.001),r=Lt.now()*.001,i=Math.floor(r)+e,n=Math.floor(r%1*1e9);return t&&(i=i-t[0],n=n-t[1],n<0&&(i--,n+=ws)),[i,n]}function wt(){return $u}function Wu(t){return[]}var bt,Lr,Xt,Fi,Ol,xl,Ml,Ll,Ul,Nl,ql,Dl,jl,Fl,Wl,$l,Hl,Vl,zl,Kl,Ql,Yl,Jl,tu,ru,$i,iu,nu,su,ou,au,lu,fu,cu,hu,pu,gu,yu,bu,wu,_u,mu,vu,Eu,Su,Au,Iu,Tu,Ru,Cu,Bu,Lt,bs,ws,ku,Ou,xu,Mu,Lu,Uu,Nu,qu,Du,ju,Fu,$u,Hu=_e(()=>{_();v();m();bt=[],Lr=!1,Fi=-1;kl.prototype.run=function(){this.fun.apply(null,this.array)};Ol="browser",xl="x64",Ml="browser",Ll={PATH:"/usr/bin",LANG:navigator.language+".UTF-8",PWD:"/",HOME:"/home",TMP:"/tmp"},Ul=["/usr/bin/node"],Nl=[],ql="v16.8.0",Dl={},jl=function(t,e){console.warn((e?e+": ":"")+t)},Fl=function(t){_s("binding")},Wl=function(t){return 0},$l=function(){return"/"},Hl=function(t){},Vl={name:"node",sourceUrl:"",headersUrl:"",libUrl:""};zl=Ee,Kl=[];Ql={},Yl=!1,Jl={};tu=Ee,ru=Ee,$i=function(){return{}},iu=$i,nu=$i,su=Ee,ou=Ee,au=Ee,lu={};fu={inspector:!1,debug:!1,uv:!1,ipv6:!1,tls_alpn:!1,tls_sni:!1,tls_ocsp:!1,tls:!1,cached_builtins:!0},cu=Ee,hu=Ee;pu=Ee,gu=Ee,yu=Ee,bu=Ee,wu=Ee,_u=void 0,mu=void 0,vu=void 0,Eu=Ee,Su=2,Au=1,Iu="/bin/usr/node",Tu=9229,Ru="node",Cu=[],Bu=Ee,Lt={now:typeof performance<"u"?performance.now.bind(performance):void 0,timing:typeof performance<"u"?performance.timing:void 0};Lt.now===void 0&&(bs=Date.now(),Lt.timing&&Lt.timing.navigationStart&&(bs=Lt.timing.navigationStart),Lt.now=()=>Date.now()-bs);ws=1e9;Wi.bigint=function(t){var e=Wi(t);return typeof BigInt>"u"?e[0]*ws+e[1]:BigInt(e[0]*ws)+BigInt(e[1])};ku=10,Ou={},xu=0;Mu=wt,Lu=wt,Uu=wt,Nu=wt,qu=wt,Du=Ee,ju=wt,Fu=wt;$u={version:ql,versions:Dl,arch:xl,platform:Ml,release:Vl,_rawDebug:zl,moduleLoadList:Kl,binding:Fl,_linkedBinding:Gl,_events:Ou,_eventsCount:xu,_maxListeners:ku,on:wt,addListener:Mu,once:Lu,off:Uu,removeListener:Nu,removeAllListeners:qu,emit:Du,prependListener:ju,prependOnceListener:Fu,listeners:Wu,domain:Ql,_exiting:Yl,config:Jl,dlopen:Xl,uptime:Pu,_getActiveRequests:Zl,_getActiveHandles:eu,reallyExit:tu,_kill:ru,cpuUsage:$i,resourceUsage:iu,memoryUsage:nu,kill:su,exit:ou,openStdin:au,allowedNodeEnvironmentFlags:lu,assert:uu,features:fu,_fatalExceptions:cu,setUncaughtExceptionCaptureCallback:hu,hasUncaughtExceptionCaptureCallback:du,emitWarning:jl,nextTick:Pl,_tickCallback:pu,_debugProcess:gu,_debugEnd:yu,_startProfilerIdleNotifier:bu,_stopProfilerIdleNotifier:wu,stdout:_u,stdin:vu,stderr:mu,abort:Eu,umask:Wl,chdir:Hl,cwd:$l,env:Ll,title:Ol,argv:Ul,execArgv:Nl,pid:Su,ppid:Au,execPath:Iu,debugPort:Tu,hrtime:Wi,argv0:Ru,_preload_modules:Cu,setSourceMapsEnabled:Bu}});var m=_e(()=>{Hu()});var me={};Jt(me,{Buffer:()=>x,INSPECT_MAX_BYTES:()=>ty,default:()=>Ut,kMaxLength:()=>ry});function Xg(){if(Vu)return ci;Vu=!0,ci.byteLength=a,ci.toByteArray=c,ci.fromByteArray=g;for(var t=[],e=[],r=typeof Uint8Array<"u"?Uint8Array:Array,i="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",n=0,o=i.length;n<o;++n)t[n]=i[n],e[i.charCodeAt(n)]=n;e["-".charCodeAt(0)]=62,e["_".charCodeAt(0)]=63;function s(y){var w=y.length;if(w%4>0)throw new Error("Invalid string. Length must be a multiple of 4");var S=y.indexOf("=");S===-1&&(S=w);var E=S===w?0:4-S%4;return[S,E]}function a(y){var w=s(y),S=w[0],E=w[1];return(S+E)*3/4-E}function l(y,w,S){return(w+S)*3/4-S}function c(y){var w,S=s(y),E=S[0],I=S[1],C=new r(l(y,E,I)),R=0,U=I>0?E-4:E,N;for(N=0;N<U;N+=4)w=e[y.charCodeAt(N)]<<18|e[y.charCodeAt(N+1)]<<12|e[y.charCodeAt(N+2)]<<6|e[y.charCodeAt(N+3)],C[R++]=w>>16&255,C[R++]=w>>8&255,C[R++]=w&255;return I===2&&(w=e[y.charCodeAt(N)]<<2|e[y.charCodeAt(N+1)]>>4,C[R++]=w&255),I===1&&(w=e[y.charCodeAt(N)]<<10|e[y.charCodeAt(N+1)]<<4|e[y.charCodeAt(N+2)]>>2,C[R++]=w>>8&255,C[R++]=w&255),C}function h(y){return t[y>>18&63]+t[y>>12&63]+t[y>>6&63]+t[y&63]}function d(y,w,S){for(var E,I=[],C=w;C<S;C+=3)E=(y[C]<<16&16711680)+(y[C+1]<<8&65280)+(y[C+2]&255),I.push(h(E));return I.join("")}function g(y){for(var w,S=y.length,E=S%3,I=[],C=16383,R=0,U=S-E;R<U;R+=C)I.push(d(y,R,R+C>U?U:R+C));return E===1?(w=y[S-1],I.push(t[w>>2]+t[w<<4&63]+"==")):E===2&&(w=(y[S-2]<<8)+y[S-1],I.push(t[w>>10]+t[w>>4&63]+t[w<<2&63]+"=")),I.join("")}return ci}function Zg(){if(zu)return Hi;zu=!0;return Hi.read=function(t,e,r,i,n){var o,s,a=n*8-i-1,l=(1<<a)-1,c=l>>1,h=-7,d=r?n-1:0,g=r?-1:1,y=t[e+d];for(d+=g,o=y&(1<<-h)-1,y>>=-h,h+=a;h>0;o=o*256+t[e+d],d+=g,h-=8);for(s=o&(1<<-h)-1,o>>=-h,h+=i;h>0;s=s*256+t[e+d],d+=g,h-=8);if(o===0)o=1-c;else{if(o===l)return s?NaN:(y?-1:1)*(1/0);s=s+Math.pow(2,i),o=o-c}return(y?-1:1)*s*Math.pow(2,o-i)},Hi.write=function(t,e,r,i,n,o){var s,a,l,c=o*8-n-1,h=(1<<c)-1,d=h>>1,g=n===23?Math.pow(2,-24)-Math.pow(2,-77):0,y=i?0:o-1,w=i?1:-1,S=e<0||e===0&&1/e<0?1:0;for(e=Math.abs(e),isNaN(e)||e===1/0?(a=isNaN(e)?1:0,s=h):(s=Math.floor(Math.log(e)/Math.LN2),e*(l=Math.pow(2,-s))<1&&(s--,l*=2),s+d>=1?e+=g/l:e+=g*Math.pow(2,1-d),e*l>=2&&(s++,l/=2),s+d>=h?(a=0,s=h):s+d>=1?(a=(e*l-1)*Math.pow(2,n),s=s+d):(a=e*Math.pow(2,d-1)*Math.pow(2,n),s=0));n>=8;t[r+y]=a&255,y+=w,a/=256,n-=8);for(s=s<<n|a,c+=n;c>0;t[r+y]=s&255,y+=w,s/=256,c-=8);t[r+y-w]|=S*128},Hi}function ey(){if(Ku)return Zt;Ku=!0;let t=Xg(),e=Zg(),r=typeof Symbol=="function"&&typeof Symbol.for=="function"?Symbol.for("nodejs.util.inspect.custom"):null;Zt.Buffer=s,Zt.SlowBuffer=I,Zt.INSPECT_MAX_BYTES=50;let i=2147483647;Zt.kMaxLength=i,s.TYPED_ARRAY_SUPPORT=n(),!s.TYPED_ARRAY_SUPPORT&&typeof console<"u"&&typeof console.error=="function"&&console.error("This browser lacks typed array (Uint8Array) support which is required by `buffer` v5.x. Use `buffer` v4.x if you require old browser support.");function n(){try{let p=new Uint8Array(1),u={foo:function(){return 42}};return Object.setPrototypeOf(u,Uint8Array.prototype),Object.setPrototypeOf(p,u),p.foo()===42}catch{return!1}}Object.defineProperty(s.prototype,"parent",{enumerable:!0,get:function(){if(s.isBuffer(this))return this.buffer}}),Object.defineProperty(s.prototype,"offset",{enumerable:!0,get:function(){if(s.isBuffer(this))return this.byteOffset}});function o(p){if(p>i)throw new RangeError('The value "'+p+'" is invalid for option "size"');let u=new Uint8Array(p);return Object.setPrototypeOf(u,s.prototype),u}function s(p,u,f){if(typeof p=="number"){if(typeof u=="string")throw new TypeError('The "string" argument must be of type string. Received type number');return h(p)}return a(p,u,f)}s.poolSize=8192;function a(p,u,f){if(typeof p=="string")return d(p,u);if(ArrayBuffer.isView(p))return y(p);if(p==null)throw new TypeError("The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type "+typeof p);if(Ye(p,ArrayBuffer)||p&&Ye(p.buffer,ArrayBuffer)||typeof SharedArrayBuffer<"u"&&(Ye(p,SharedArrayBuffer)||p&&Ye(p.buffer,SharedArrayBuffer)))return w(p,u,f);if(typeof p=="number")throw new TypeError('The "value" argument must not be of type number. Received type number');let b=p.valueOf&&p.valueOf();if(b!=null&&b!==p)return s.from(b,u,f);let A=S(p);if(A)return A;if(typeof Symbol<"u"&&Symbol.toPrimitive!=null&&typeof p[Symbol.toPrimitive]=="function")return s.from(p[Symbol.toPrimitive]("string"),u,f);throw new TypeError("The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type "+typeof p)}s.from=function(p,u,f){return a(p,u,f)},Object.setPrototypeOf(s.prototype,Uint8Array.prototype),Object.setPrototypeOf(s,Uint8Array);function l(p){if(typeof p!="number")throw new TypeError('"size" argument must be of type number');if(p<0)throw new RangeError('The value "'+p+'" is invalid for option "size"')}function c(p,u,f){return l(p),p<=0?o(p):u!==void 0?typeof f=="string"?o(p).fill(u,f):o(p).fill(u):o(p)}s.alloc=function(p,u,f){return c(p,u,f)};function h(p){return l(p),o(p<0?0:E(p)|0)}s.allocUnsafe=function(p){return h(p)},s.allocUnsafeSlow=function(p){return h(p)};function d(p,u){if((typeof u!="string"||u==="")&&(u="utf8"),!s.isEncoding(u))throw new TypeError("Unknown encoding: "+u);let f=C(p,u)|0,b=o(f),A=b.write(p,u);return A!==f&&(b=b.slice(0,A)),b}function g(p){let u=p.length<0?0:E(p.length)|0,f=o(u);for(let b=0;b<u;b+=1)f[b]=p[b]&255;return f}function y(p){if(Ye(p,Uint8Array)){let u=new Uint8Array(p);return w(u.buffer,u.byteOffset,u.byteLength)}return g(p)}function w(p,u,f){if(u<0||p.byteLength<u)throw new RangeError('"offset" is outside of buffer bounds');if(p.byteLength<u+(f||0))throw new RangeError('"length" is outside of buffer bounds');let b;return u===void 0&&f===void 0?b=new Uint8Array(p):f===void 0?b=new Uint8Array(p,u):b=new Uint8Array(p,u,f),Object.setPrototypeOf(b,s.prototype),b}function S(p){if(s.isBuffer(p)){let u=E(p.length)|0,f=o(u);return f.length===0||p.copy(f,0,0,u),f}if(p.length!==void 0)return typeof p.length!="number"||gs(p.length)?o(0):g(p);if(p.type==="Buffer"&&Array.isArray(p.data))return g(p.data)}function E(p){if(p>=i)throw new RangeError("Attempt to allocate Buffer larger than maximum size: 0x"+i.toString(16)+" bytes");return p|0}function I(p){return+p!=p&&(p=0),s.alloc(+p)}s.isBuffer=function(u){return u!=null&&u._isBuffer===!0&&u!==s.prototype},s.compare=function(u,f){if(Ye(u,Uint8Array)&&(u=s.from(u,u.offset,u.byteLength)),Ye(f,Uint8Array)&&(f=s.from(f,f.offset,f.byteLength)),!s.isBuffer(u)||!s.isBuffer(f))throw new TypeError('The "buf1", "buf2" arguments must be one of type Buffer or Uint8Array');if(u===f)return 0;let b=u.length,A=f.length;for(let T=0,P=Math.min(b,A);T<P;++T)if(u[T]!==f[T]){b=u[T],A=f[T];break}return b<A?-1:A<b?1:0},s.isEncoding=function(u){switch(String(u).toLowerCase()){case"hex":case"utf8":case"utf-8":case"ascii":case"latin1":case"binary":case"base64":case"ucs2":case"ucs-2":case"utf16le":case"utf-16le":return!0;default:return!1}},s.concat=function(u,f){if(!Array.isArray(u))throw new TypeError('"list" argument must be an Array of Buffers');if(u.length===0)return s.alloc(0);let b;if(f===void 0)for(f=0,b=0;b<u.length;++b)f+=u[b].length;let A=s.allocUnsafe(f),T=0;for(b=0;b<u.length;++b){let P=u[b];if(Ye(P,Uint8Array))T+P.length>A.length?(s.isBuffer(P)||(P=s.from(P)),P.copy(A,T)):Uint8Array.prototype.set.call(A,P,T);else if(s.isBuffer(P))P.copy(A,T);else throw new TypeError('"list" argument must be an Array of Buffers');T+=P.length}return A};function C(p,u){if(s.isBuffer(p))return p.length;if(ArrayBuffer.isView(p)||Ye(p,ArrayBuffer))return p.byteLength;if(typeof p!="string")throw new TypeError('The "string" argument must be one of type string, Buffer, or ArrayBuffer. Received type '+typeof p);let f=p.length,b=arguments.length>2&&arguments[2]===!0;if(!b&&f===0)return 0;let A=!1;for(;;)switch(u){case"ascii":case"latin1":case"binary":return f;case"utf8":case"utf-8":return ps(p).length;case"ucs2":case"ucs-2":case"utf16le":case"utf-16le":return f*2;case"hex":return f>>>1;case"base64":return Cl(p).length;default:if(A)return b?-1:ps(p).length;u=(""+u).toLowerCase(),A=!0}}s.byteLength=C;function R(p,u,f){let b=!1;if((u===void 0||u<0)&&(u=0),u>this.length||((f===void 0||f>this.length)&&(f=this.length),f<=0)||(f>>>=0,u>>>=0,f<=u))return"";for(p||(p="utf8");;)switch(p){case"hex":return qg(this,u,f);case"utf8":case"utf-8":return Pr(this,u,f);case"ascii":return hs(this,u,f);case"latin1":case"binary":return Ng(this,u,f);case"base64":return ge(this,u,f);case"ucs2":case"ucs-2":case"utf16le":case"utf-16le":return Dg(this,u,f);default:if(b)throw new TypeError("Unknown encoding: "+p);p=(p+"").toLowerCase(),b=!0}}s.prototype._isBuffer=!0;function U(p,u,f){let b=p[u];p[u]=p[f],p[f]=b}s.prototype.swap16=function(){let u=this.length;if(u%2!==0)throw new RangeError("Buffer size must be a multiple of 16-bits");for(let f=0;f<u;f+=2)U(this,f,f+1);return this},s.prototype.swap32=function(){let u=this.length;if(u%4!==0)throw new RangeError("Buffer size must be a multiple of 32-bits");for(let f=0;f<u;f+=4)U(this,f,f+3),U(this,f+1,f+2);return this},s.prototype.swap64=function(){let u=this.length;if(u%8!==0)throw new RangeError("Buffer size must be a multiple of 64-bits");for(let f=0;f<u;f+=8)U(this,f,f+7),U(this,f+1,f+6),U(this,f+2,f+5),U(this,f+3,f+4);return this},s.prototype.toString=function(){let u=this.length;return u===0?"":arguments.length===0?Pr(this,0,u):R.apply(this,arguments)},s.prototype.toLocaleString=s.prototype.toString,s.prototype.equals=function(u){if(!s.isBuffer(u))throw new TypeError("Argument must be a Buffer");return this===u?!0:s.compare(this,u)===0},s.prototype.inspect=function(){let u="",f=Zt.INSPECT_MAX_BYTES;return u=this.toString("hex",0,f).replace(/(.{2})/g,"$1 ").trim(),this.length>f&&(u+=" ... "),"<Buffer "+u+">"},r&&(s.prototype[r]=s.prototype.inspect),s.prototype.compare=function(u,f,b,A,T){if(Ye(u,Uint8Array)&&(u=s.from(u,u.offset,u.byteLength)),!s.isBuffer(u))throw new TypeError('The "target" argument must be one of type Buffer or Uint8Array. Received type '+typeof u);if(f===void 0&&(f=0),b===void 0&&(b=u?u.length:0),A===void 0&&(A=0),T===void 0&&(T=this.length),f<0||b>u.length||A<0||T>this.length)throw new RangeError("out of range index");if(A>=T&&f>=b)return 0;if(A>=T)return-1;if(f>=b)return 1;if(f>>>=0,b>>>=0,A>>>=0,T>>>=0,this===u)return 0;let P=T-A,$=b-f,se=Math.min(P,$),te=this.slice(A,T),oe=u.slice(f,b);for(let J=0;J<se;++J)if(te[J]!==oe[J]){P=te[J],$=oe[J];break}return P<$?-1:$<P?1:0};function N(p,u,f,b,A){if(p.length===0)return-1;if(typeof f=="string"?(b=f,f=0):f>2147483647?f=2147483647:f<-2147483648&&(f=-2147483648),f=+f,gs(f)&&(f=A?0:p.length-1),f<0&&(f=p.length+f),f>=p.length){if(A)return-1;f=p.length-1}else if(f<0)if(A)f=0;else return-1;if(typeof u=="string"&&(u=s.from(u,b)),s.isBuffer(u))return u.length===0?-1:W(p,u,f,b,A);if(typeof u=="number")return u=u&255,typeof Uint8Array.prototype.indexOf=="function"?A?Uint8Array.prototype.indexOf.call(p,u,f):Uint8Array.prototype.lastIndexOf.call(p,u,f):W(p,[u],f,b,A);throw new TypeError("val must be string, number or Buffer")}function W(p,u,f,b,A){let T=1,P=p.length,$=u.length;if(b!==void 0&&(b=String(b).toLowerCase(),b==="ucs2"||b==="ucs-2"||b==="utf16le"||b==="utf-16le")){if(p.length<2||u.length<2)return-1;T=2,P/=2,$/=2,f/=2}function se(oe,J){return T===1?oe[J]:oe.readUInt16BE(J*T)}let te;if(A){let oe=-1;for(te=f;te<P;te++)if(se(p,te)===se(u,oe===-1?0:te-oe)){if(oe===-1&&(oe=te),te-oe+1===$)return oe*T}else oe!==-1&&(te-=te-oe),oe=-1}else for(f+$>P&&(f=P-$),te=f;te>=0;te--){let oe=!0;for(let J=0;J<$;J++)if(se(p,te+J)!==se(u,J)){oe=!1;break}if(oe)return te}return-1}s.prototype.includes=function(u,f,b){return this.indexOf(u,f,b)!==-1},s.prototype.indexOf=function(u,f,b){return N(this,u,f,b,!0)},s.prototype.lastIndexOf=function(u,f,b){return N(this,u,f,b,!1)};function K(p,u,f,b){f=Number(f)||0;let A=p.length-f;b?(b=Number(b),b>A&&(b=A)):b=A;let T=u.length;b>T/2&&(b=T/2);let P;for(P=0;P<b;++P){let $=parseInt(u.substr(P*2,2),16);if(gs($))return P;p[f+P]=$}return P}function z(p,u,f,b){return ji(ps(u,p.length-f),p,f,b)}function Q(p,u,f,b){return ji($g(u),p,f,b)}function pe(p,u,f,b){return ji(Cl(u),p,f,b)}function Yt(p,u,f,b){return ji(Hg(u,p.length-f),p,f,b)}s.prototype.write=function(u,f,b,A){if(f===void 0)A="utf8",b=this.length,f=0;else if(b===void 0&&typeof f=="string")A=f,b=this.length,f=0;else if(isFinite(f))f=f>>>0,isFinite(b)?(b=b>>>0,A===void 0&&(A="utf8")):(A=b,b=void 0);else throw new Error("Buffer.write(string, encoding, offset[, length]) is no longer supported");let T=this.length-f;if((b===void 0||b>T)&&(b=T),u.length>0&&(b<0||f<0)||f>this.length)throw new RangeError("Attempt to write outside buffer bounds");A||(A="utf8");let P=!1;for(;;)switch(A){case"hex":return K(this,u,f,b);case"utf8":case"utf-8":return z(this,u,f,b);case"ascii":case"latin1":case"binary":return Q(this,u,f,b);case"base64":return pe(this,u,f,b);case"ucs2":case"ucs-2":case"utf16le":case"utf-16le":return Yt(this,u,f,b);default:if(P)throw new TypeError("Unknown encoding: "+A);A=(""+A).toLowerCase(),P=!0}},s.prototype.toJSON=function(){return{type:"Buffer",data:Array.prototype.slice.call(this._arr||this,0)}};function ge(p,u,f){return u===0&&f===p.length?t.fromByteArray(p):t.fromByteArray(p.slice(u,f))}function Pr(p,u,f){f=Math.min(p.length,f);let b=[],A=u;for(;A<f;){let T=p[A],P=null,$=T>239?4:T>223?3:T>191?2:1;if(A+$<=f){let se,te,oe,J;switch($){case 1:T<128&&(P=T);break;case 2:se=p[A+1],(se&192)===128&&(J=(T&31)<<6|se&63,J>127&&(P=J));break;case 3:se=p[A+1],te=p[A+2],(se&192)===128&&(te&192)===128&&(J=(T&15)<<12|(se&63)<<6|te&63,J>2047&&(J<55296||J>57343)&&(P=J));break;case 4:se=p[A+1],te=p[A+2],oe=p[A+3],(se&192)===128&&(te&192)===128&&(oe&192)===128&&(J=(T&15)<<18|(se&63)<<12|(te&63)<<6|oe&63,J>65535&&J<1114112&&(P=J))}}P===null?(P=65533,$=1):P>65535&&(P-=65536,b.push(P>>>10&1023|55296),P=56320|P&1023),b.push(P),A+=$}return Or(b)}let kr=4096;function Or(p){let u=p.length;if(u<=kr)return String.fromCharCode.apply(String,p);let f="",b=0;for(;b<u;)f+=String.fromCharCode.apply(String,p.slice(b,b+=kr));return f}function hs(p,u,f){let b="";f=Math.min(p.length,f);for(let A=u;A<f;++A)b+=String.fromCharCode(p[A]&127);return b}function Ng(p,u,f){let b="";f=Math.min(p.length,f);for(let A=u;A<f;++A)b+=String.fromCharCode(p[A]);return b}function qg(p,u,f){let b=p.length;(!u||u<0)&&(u=0),(!f||f<0||f>b)&&(f=b);let A="";for(let T=u;T<f;++T)A+=Vg[p[T]];return A}function Dg(p,u,f){let b=p.slice(u,f),A="";for(let T=0;T<b.length-1;T+=2)A+=String.fromCharCode(b[T]+b[T+1]*256);return A}s.prototype.slice=function(u,f){let b=this.length;u=~~u,f=f===void 0?b:~~f,u<0?(u+=b,u<0&&(u=0)):u>b&&(u=b),f<0?(f+=b,f<0&&(f=0)):f>b&&(f=b),f<u&&(f=u);let A=this.subarray(u,f);return Object.setPrototypeOf(A,s.prototype),A};function ye(p,u,f){if(p%1!==0||p<0)throw new RangeError("offset is not uint");if(p+u>f)throw new RangeError("Trying to access beyond buffer length")}s.prototype.readUintLE=s.prototype.readUIntLE=function(u,f,b){u=u>>>0,f=f>>>0,b||ye(u,f,this.length);let A=this[u],T=1,P=0;for(;++P<f&&(T*=256);)A+=this[u+P]*T;return A},s.prototype.readUintBE=s.prototype.readUIntBE=function(u,f,b){u=u>>>0,f=f>>>0,b||ye(u,f,this.length);let A=this[u+--f],T=1;for(;f>0&&(T*=256);)A+=this[u+--f]*T;return A},s.prototype.readUint8=s.prototype.readUInt8=function(u,f){return u=u>>>0,f||ye(u,1,this.length),this[u]},s.prototype.readUint16LE=s.prototype.readUInt16LE=function(u,f){return u=u>>>0,f||ye(u,2,this.length),this[u]|this[u+1]<<8},s.prototype.readUint16BE=s.prototype.readUInt16BE=function(u,f){return u=u>>>0,f||ye(u,2,this.length),this[u]<<8|this[u+1]},s.prototype.readUint32LE=s.prototype.readUInt32LE=function(u,f){return u=u>>>0,f||ye(u,4,this.length),(this[u]|this[u+1]<<8|this[u+2]<<16)+this[u+3]*16777216},s.prototype.readUint32BE=s.prototype.readUInt32BE=function(u,f){return u=u>>>0,f||ye(u,4,this.length),this[u]*16777216+(this[u+1]<<16|this[u+2]<<8|this[u+3])},s.prototype.readBigUInt64LE=Mt(function(u){u=u>>>0,Mr(u,"offset");let f=this[u],b=this[u+7];(f===void 0||b===void 0)&&fi(u,this.length-8);let A=f+this[++u]*2**8+this[++u]*2**16+this[++u]*2**24,T=this[++u]+this[++u]*2**8+this[++u]*2**16+b*2**24;return BigInt(A)+(BigInt(T)<<BigInt(32))}),s.prototype.readBigUInt64BE=Mt(function(u){u=u>>>0,Mr(u,"offset");let f=this[u],b=this[u+7];(f===void 0||b===void 0)&&fi(u,this.length-8);let A=f*2**24+this[++u]*2**16+this[++u]*2**8+this[++u],T=this[++u]*2**24+this[++u]*2**16+this[++u]*2**8+b;return(BigInt(A)<<BigInt(32))+BigInt(T)}),s.prototype.readIntLE=function(u,f,b){u=u>>>0,f=f>>>0,b||ye(u,f,this.length);let A=this[u],T=1,P=0;for(;++P<f&&(T*=256);)A+=this[u+P]*T;return T*=128,A>=T&&(A-=Math.pow(2,8*f)),A},s.prototype.readIntBE=function(u,f,b){u=u>>>0,f=f>>>0,b||ye(u,f,this.length);let A=f,T=1,P=this[u+--A];for(;A>0&&(T*=256);)P+=this[u+--A]*T;return T*=128,P>=T&&(P-=Math.pow(2,8*f)),P},s.prototype.readInt8=function(u,f){return u=u>>>0,f||ye(u,1,this.length),this[u]&128?(255-this[u]+1)*-1:this[u]},s.prototype.readInt16LE=function(u,f){u=u>>>0,f||ye(u,2,this.length);let b=this[u]|this[u+1]<<8;return b&32768?b|4294901760:b},s.prototype.readInt16BE=function(u,f){u=u>>>0,f||ye(u,2,this.length);let b=this[u+1]|this[u]<<8;return b&32768?b|4294901760:b},s.prototype.readInt32LE=function(u,f){return u=u>>>0,f||ye(u,4,this.length),this[u]|this[u+1]<<8|this[u+2]<<16|this[u+3]<<24},s.prototype.readInt32BE=function(u,f){return u=u>>>0,f||ye(u,4,this.length),this[u]<<24|this[u+1]<<16|this[u+2]<<8|this[u+3]},s.prototype.readBigInt64LE=Mt(function(u){u=u>>>0,Mr(u,"offset");let f=this[u],b=this[u+7];(f===void 0||b===void 0)&&fi(u,this.length-8);let A=this[u+4]+this[u+5]*2**8+this[u+6]*2**16+(b<<24);return(BigInt(A)<<BigInt(32))+BigInt(f+this[++u]*2**8+this[++u]*2**16+this[++u]*2**24)}),s.prototype.readBigInt64BE=Mt(function(u){u=u>>>0,Mr(u,"offset");let f=this[u],b=this[u+7];(f===void 0||b===void 0)&&fi(u,this.length-8);let A=(f<<24)+this[++u]*2**16+this[++u]*2**8+this[++u];return(BigInt(A)<<BigInt(32))+BigInt(this[++u]*2**24+this[++u]*2**16+this[++u]*2**8+b)}),s.prototype.readFloatLE=function(u,f){return u=u>>>0,f||ye(u,4,this.length),e.read(this,u,!0,23,4)},s.prototype.readFloatBE=function(u,f){return u=u>>>0,f||ye(u,4,this.length),e.read(this,u,!1,23,4)},s.prototype.readDoubleLE=function(u,f){return u=u>>>0,f||ye(u,8,this.length),e.read(this,u,!0,52,8)},s.prototype.readDoubleBE=function(u,f){return u=u>>>0,f||ye(u,8,this.length),e.read(this,u,!1,52,8)};function Ce(p,u,f,b,A,T){if(!s.isBuffer(p))throw new TypeError('"buffer" argument must be a Buffer instance');if(u>A||u<T)throw new RangeError('"value" argument is out of bounds');if(f+b>p.length)throw new RangeError("Index out of range")}s.prototype.writeUintLE=s.prototype.writeUIntLE=function(u,f,b,A){if(u=+u,f=f>>>0,b=b>>>0,!A){let $=Math.pow(2,8*b)-1;Ce(this,u,f,b,$,0)}let T=1,P=0;for(this[f]=u&255;++P<b&&(T*=256);)this[f+P]=u/T&255;return f+b},s.prototype.writeUintBE=s.prototype.writeUIntBE=function(u,f,b,A){if(u=+u,f=f>>>0,b=b>>>0,!A){let $=Math.pow(2,8*b)-1;Ce(this,u,f,b,$,0)}let T=b-1,P=1;for(this[f+T]=u&255;--T>=0&&(P*=256);)this[f+T]=u/P&255;return f+b},s.prototype.writeUint8=s.prototype.writeUInt8=function(u,f,b){return u=+u,f=f>>>0,b||Ce(this,u,f,1,255,0),this[f]=u&255,f+1},s.prototype.writeUint16LE=s.prototype.writeUInt16LE=function(u,f,b){return u=+u,f=f>>>0,b||Ce(this,u,f,2,65535,0),this[f]=u&255,this[f+1]=u>>>8,f+2},s.prototype.writeUint16BE=s.prototype.writeUInt16BE=function(u,f,b){return u=+u,f=f>>>0,b||Ce(this,u,f,2,65535,0),this[f]=u>>>8,this[f+1]=u&255,f+2},s.prototype.writeUint32LE=s.prototype.writeUInt32LE=function(u,f,b){return u=+u,f=f>>>0,b||Ce(this,u,f,4,4294967295,0),this[f+3]=u>>>24,this[f+2]=u>>>16,this[f+1]=u>>>8,this[f]=u&255,f+4},s.prototype.writeUint32BE=s.prototype.writeUInt32BE=function(u,f,b){return u=+u,f=f>>>0,b||Ce(this,u,f,4,4294967295,0),this[f]=u>>>24,this[f+1]=u>>>16,this[f+2]=u>>>8,this[f+3]=u&255,f+4};function vl(p,u,f,b,A){Rl(u,b,A,p,f,7);let T=Number(u&BigInt(4294967295));p[f++]=T,T=T>>8,p[f++]=T,T=T>>8,p[f++]=T,T=T>>8,p[f++]=T;let P=Number(u>>BigInt(32)&BigInt(4294967295));return p[f++]=P,P=P>>8,p[f++]=P,P=P>>8,p[f++]=P,P=P>>8,p[f++]=P,f}function El(p,u,f,b,A){Rl(u,b,A,p,f,7);let T=Number(u&BigInt(4294967295));p[f+7]=T,T=T>>8,p[f+6]=T,T=T>>8,p[f+5]=T,T=T>>8,p[f+4]=T;let P=Number(u>>BigInt(32)&BigInt(4294967295));return p[f+3]=P,P=P>>8,p[f+2]=P,P=P>>8,p[f+1]=P,P=P>>8,p[f]=P,f+8}s.prototype.writeBigUInt64LE=Mt(function(u,f=0){return vl(this,u,f,BigInt(0),BigInt("0xffffffffffffffff"))}),s.prototype.writeBigUInt64BE=Mt(function(u,f=0){return El(this,u,f,BigInt(0),BigInt("0xffffffffffffffff"))}),s.prototype.writeIntLE=function(u,f,b,A){if(u=+u,f=f>>>0,!A){let se=Math.pow(2,8*b-1);Ce(this,u,f,b,se-1,-se)}let T=0,P=1,$=0;for(this[f]=u&255;++T<b&&(P*=256);)u<0&&$===0&&this[f+T-1]!==0&&($=1),this[f+T]=(u/P>>0)-$&255;return f+b},s.prototype.writeIntBE=function(u,f,b,A){if(u=+u,f=f>>>0,!A){let se=Math.pow(2,8*b-1);Ce(this,u,f,b,se-1,-se)}let T=b-1,P=1,$=0;for(this[f+T]=u&255;--T>=0&&(P*=256);)u<0&&$===0&&this[f+T+1]!==0&&($=1),this[f+T]=(u/P>>0)-$&255;return f+b},s.prototype.writeInt8=function(u,f,b){return u=+u,f=f>>>0,b||Ce(this,u,f,1,127,-128),u<0&&(u=255+u+1),this[f]=u&255,f+1},s.prototype.writeInt16LE=function(u,f,b){return u=+u,f=f>>>0,b||Ce(this,u,f,2,32767,-32768),this[f]=u&255,this[f+1]=u>>>8,f+2},s.prototype.writeInt16BE=function(u,f,b){return u=+u,f=f>>>0,b||Ce(this,u,f,2,32767,-32768),this[f]=u>>>8,this[f+1]=u&255,f+2},s.prototype.writeInt32LE=function(u,f,b){return u=+u,f=f>>>0,b||Ce(this,u,f,4,2147483647,-2147483648),this[f]=u&255,this[f+1]=u>>>8,this[f+2]=u>>>16,this[f+3]=u>>>24,f+4},s.prototype.writeInt32BE=function(u,f,b){return u=+u,f=f>>>0,b||Ce(this,u,f,4,2147483647,-2147483648),u<0&&(u=4294967295+u+1),this[f]=u>>>24,this[f+1]=u>>>16,this[f+2]=u>>>8,this[f+3]=u&255,f+4},s.prototype.writeBigInt64LE=Mt(function(u,f=0){return vl(this,u,f,-BigInt("0x8000000000000000"),BigInt("0x7fffffffffffffff"))}),s.prototype.writeBigInt64BE=Mt(function(u,f=0){return El(this,u,f,-BigInt("0x8000000000000000"),BigInt("0x7fffffffffffffff"))});function Sl(p,u,f,b,A,T){if(f+b>p.length)throw new RangeError("Index out of range");if(f<0)throw new RangeError("Index out of range")}function Al(p,u,f,b,A){return u=+u,f=f>>>0,A||Sl(p,u,f,4),e.write(p,u,f,b,23,4),f+4}s.prototype.writeFloatLE=function(u,f,b){return Al(this,u,f,!0,b)},s.prototype.writeFloatBE=function(u,f,b){return Al(this,u,f,!1,b)};function Il(p,u,f,b,A){return u=+u,f=f>>>0,A||Sl(p,u,f,8),e.write(p,u,f,b,52,8),f+8}s.prototype.writeDoubleLE=function(u,f,b){return Il(this,u,f,!0,b)},s.prototype.writeDoubleBE=function(u,f,b){return Il(this,u,f,!1,b)},s.prototype.copy=function(u,f,b,A){if(!s.isBuffer(u))throw new TypeError("argument should be a Buffer");if(b||(b=0),!A&&A!==0&&(A=this.length),f>=u.length&&(f=u.length),f||(f=0),A>0&&A<b&&(A=b),A===b||u.length===0||this.length===0)return 0;if(f<0)throw new RangeError("targetStart out of bounds");if(b<0||b>=this.length)throw new RangeError("Index out of range");if(A<0)throw new RangeError("sourceEnd out of bounds");A>this.length&&(A=this.length),u.length-f<A-b&&(A=u.length-f+b);let T=A-b;return this===u&&typeof Uint8Array.prototype.copyWithin=="function"?this.copyWithin(f,b,A):Uint8Array.prototype.set.call(u,this.subarray(b,A),f),T},s.prototype.fill=function(u,f,b,A){if(typeof u=="string"){if(typeof f=="string"?(A=f,f=0,b=this.length):typeof b=="string"&&(A=b,b=this.length),A!==void 0&&typeof A!="string")throw new TypeError("encoding must be a string");if(typeof A=="string"&&!s.isEncoding(A))throw new TypeError("Unknown encoding: "+A);if(u.length===1){let P=u.charCodeAt(0);(A==="utf8"&&P<128||A==="latin1")&&(u=P)}}else typeof u=="number"?u=u&255:typeof u=="boolean"&&(u=Number(u));if(f<0||this.length<f||this.length<b)throw new RangeError("Out of range index");if(b<=f)return this;f=f>>>0,b=b===void 0?this.length:b>>>0,u||(u=0);let T;if(typeof u=="number")for(T=f;T<b;++T)this[T]=u;else{let P=s.isBuffer(u)?u:s.from(u,A),$=P.length;if($===0)throw new TypeError('The value "'+u+'" is invalid for argument "value"');for(T=0;T<b-f;++T)this[T+f]=P[T%$]}return this};let xr={};function ds(p,u,f){xr[p]=class extends f{constructor(){super(),Object.defineProperty(this,"message",{value:u.apply(this,arguments),writable:!0,configurable:!0}),this.name=`${this.name} [${p}]`,this.stack,delete this.name}get code(){return p}set code(A){Object.defineProperty(this,"code",{configurable:!0,enumerable:!0,value:A,writable:!0})}toString(){return`${this.name} [${p}]: ${this.message}`}}}ds("ERR_BUFFER_OUT_OF_BOUNDS",function(p){return p?`${p} is outside of buffer bounds`:"Attempt to access memory outside buffer bounds"},RangeError),ds("ERR_INVALID_ARG_TYPE",function(p,u){return`The "${p}" argument must be of type number. Received type ${typeof u}`},TypeError),ds("ERR_OUT_OF_RANGE",function(p,u,f){let b=`The value of "${p}" is out of range.`,A=f;return Number.isInteger(f)&&Math.abs(f)>2**32?A=Tl(String(f)):typeof f=="bigint"&&(A=String(f),(f>BigInt(2)**BigInt(32)||f<-(BigInt(2)**BigInt(32)))&&(A=Tl(A)),A+="n"),b+=` It must be ${u}. Received ${A}`,b},RangeError);function Tl(p){let u="",f=p.length,b=p[0]==="-"?1:0;for(;f>=b+4;f-=3)u=`_${p.slice(f-3,f)}${u}`;return`${p.slice(0,f)}${u}`}function jg(p,u,f){Mr(u,"offset"),(p[u]===void 0||p[u+f]===void 0)&&fi(u,p.length-(f+1))}function Rl(p,u,f,b,A,T){if(p>f||p<u){let P=typeof u=="bigint"?"n":"",$;throw T>3?u===0||u===BigInt(0)?$=`>= 0${P} and < 2${P} ** ${(T+1)*8}${P}`:$=`>= -(2${P} ** ${(T+1)*8-1}${P}) and < 2 ** ${(T+1)*8-1}${P}`:$=`>= ${u}${P} and <= ${f}${P}`,new xr.ERR_OUT_OF_RANGE("value",$,p)}jg(b,A,T)}function Mr(p,u){if(typeof p!="number")throw new xr.ERR_INVALID_ARG_TYPE(u,"number",p)}function fi(p,u,f){throw Math.floor(p)!==p?(Mr(p,f),new xr.ERR_OUT_OF_RANGE(f||"offset","an integer",p)):u<0?new xr.ERR_BUFFER_OUT_OF_BOUNDS:new xr.ERR_OUT_OF_RANGE(f||"offset",`>= ${f?1:0} and <= ${u}`,p)}let Fg=/[^+/0-9A-Za-z-_]/g;function Wg(p){if(p=p.split("=")[0],p=p.trim().replace(Fg,""),p.length<2)return"";for(;p.length%4!==0;)p=p+"=";return p}function ps(p,u){u=u||1/0;let f,b=p.length,A=null,T=[];for(let P=0;P<b;++P){if(f=p.charCodeAt(P),f>55295&&f<57344){if(!A){if(f>56319){(u-=3)>-1&&T.push(239,191,189);continue}else if(P+1===b){(u-=3)>-1&&T.push(239,191,189);continue}A=f;continue}if(f<56320){(u-=3)>-1&&T.push(239,191,189),A=f;continue}f=(A-55296<<10|f-56320)+65536}else A&&(u-=3)>-1&&T.push(239,191,189);if(A=null,f<128){if((u-=1)<0)break;T.push(f)}else if(f<2048){if((u-=2)<0)break;T.push(f>>6|192,f&63|128)}else if(f<65536){if((u-=3)<0)break;T.push(f>>12|224,f>>6&63|128,f&63|128)}else if(f<1114112){if((u-=4)<0)break;T.push(f>>18|240,f>>12&63|128,f>>6&63|128,f&63|128)}else throw new Error("Invalid code point")}return T}function $g(p){let u=[];for(let f=0;f<p.length;++f)u.push(p.charCodeAt(f)&255);return u}function Hg(p,u){let f,b,A,T=[];for(let P=0;P<p.length&&!((u-=2)<0);++P)f=p.charCodeAt(P),b=f>>8,A=f%256,T.push(A),T.push(b);return T}function Cl(p){return t.toByteArray(Wg(p))}function ji(p,u,f,b){let A;for(A=0;A<b&&!(A+f>=u.length||A>=p.length);++A)u[A+f]=p[A];return A}function Ye(p,u){return p instanceof u||p!=null&&p.constructor!=null&&p.constructor.name!=null&&p.constructor.name===u.name}function gs(p){return p!==p}let Vg=function(){let p="0123456789abcdef",u=new Array(256);for(let f=0;f<16;++f){let b=f*16;for(let A=0;A<16;++A)u[b+A]=p[f]+p[A]}return u}();function Mt(p){return typeof BigInt>"u"?zg:p}function zg(){throw new Error("BigInt not supported")}return Zt}var ci,Vu,Hi,zu,Zt,Ku,Ut,x,ty,ry,be=_e(()=>{_();v();m();ci={},Vu=!1;Hi={},zu=!1;Zt={},Ku=!1;Ut=ey();Ut.Buffer;Ut.SlowBuffer;Ut.INSPECT_MAX_BYTES;Ut.kMaxLength;x=Ut.Buffer,ty=Ut.INSPECT_MAX_BYTES,ry=Ut.kMaxLength});var v=_e(()=>{be()});var Gu=M(vs=>{"use strict";_();v();m();Object.defineProperty(vs,"__esModule",{value:!0});var ms=class{constructor(e){this.aliasToTopic={},this.max=e}put(e,r){return r===0||r>this.max?!1:(this.aliasToTopic[r]=e,this.length=Object.keys(this.aliasToTopic).length,!0)}getTopicByAlias(e){return this.aliasToTopic[e]}clear(){this.aliasToTopic={}}};vs.default=ms});var ce=M((AA,Qu)=>{"use strict";_();v();m();Qu.exports={ArrayIsArray(t){return Array.isArray(t)},ArrayPrototypeIncludes(t,e){return t.includes(e)},ArrayPrototypeIndexOf(t,e){return t.indexOf(e)},ArrayPrototypeJoin(t,e){return t.join(e)},ArrayPrototypeMap(t,e){return t.map(e)},ArrayPrototypePop(t,e){return t.pop(e)},ArrayPrototypePush(t,e){return t.push(e)},ArrayPrototypeSlice(t,e,r){return t.slice(e,r)},Error,FunctionPrototypeCall(t,e,...r){return t.call(e,...r)},FunctionPrototypeSymbolHasInstance(t,e){return Function.prototype[Symbol.hasInstance].call(t,e)},MathFloor:Math.floor,Number,NumberIsInteger:Number.isInteger,NumberIsNaN:Number.isNaN,NumberMAX_SAFE_INTEGER:Number.MAX_SAFE_INTEGER,NumberMIN_SAFE_INTEGER:Number.MIN_SAFE_INTEGER,NumberParseInt:Number.parseInt,ObjectDefineProperties(t,e){return Object.defineProperties(t,e)},ObjectDefineProperty(t,e,r){return Object.defineProperty(t,e,r)},ObjectGetOwnPropertyDescriptor(t,e){return Object.getOwnPropertyDescriptor(t,e)},ObjectKeys(t){return Object.keys(t)},ObjectSetPrototypeOf(t,e){return Object.setPrototypeOf(t,e)},Promise,PromisePrototypeCatch(t,e){return t.catch(e)},PromisePrototypeThen(t,e,r){return t.then(e,r)},PromiseReject(t){return Promise.reject(t)},ReflectApply:Reflect.apply,RegExpPrototypeTest(t,e){return t.test(e)},SafeSet:Set,String,StringPrototypeSlice(t,e,r){return t.slice(e,r)},StringPrototypeToLowerCase(t){return t.toLowerCase()},StringPrototypeToUpperCase(t){return t.toUpperCase()},StringPrototypeTrim(t){return t.trim()},Symbol,SymbolFor:Symbol.for,SymbolAsyncIterator:Symbol.asyncIterator,SymbolHasInstance:Symbol.hasInstance,SymbolIterator:Symbol.iterator,TypedArrayPrototypeSet(t,e,r){return t.set(e,r)},Uint8Array}});var Je=M((kA,Ss)=>{"use strict";_();v();m();var iy=(be(),X(me)),ny=Object.getPrototypeOf(async function(){}).constructor,Yu=globalThis.Blob||iy.Blob,sy=typeof Yu<"u"?function(e){return e instanceof Yu}:function(e){return!1},Es=class extends Error{constructor(e){if(!Array.isArray(e))throw new TypeError(`Expected input to be an Array, got ${typeof e}`);let r="";for(let i=0;i<e.length;i++)r+=`    ${e[i].stack}
@@ -174,215 +433,454 @@ details summary{cursor:pointer;font-size:13px;color:var(--text-secondary);margin
 </script>
 <script>
 (function(){
+'use strict';
+/* =====================================================================
+   TAGS — the only list you edit. One line per tag.
+   key     : name used in the HMI, in the JSON message and in SQL
+   dir     : 'read' (HMI → phone) or 'write' (phone → HMI)
+   widget  : read: 'kpi' | 'state'   write: 'number' | 'button'
+   trend   : true = selectable in the trend chart
+   plc/hmi/sql : documentation shown in the tag map
+   ===================================================================== */
+var TAGS = [
+  { key:'P_TEMP',  name:'Oven temperature', unit:'°C',  dec:1, dir:'read', widget:'kpi', trend:true, spark:true,
+    plc:'4x100 (D100, ×10)', hmi:'PLC_TEMP ÷10 → P_TEMP', sql:'P_TEMP' },
+  { key:'P_COUNT', name:'Parts produced',   unit:'pcs', dec:0, dir:'read', widget:'kpi', trend:true, rate:true,
+    plc:'4x102 (D102, Int32)', hmi:'PLC_COUNT → P_COUNT', sql:'P_COUNT' },
+  { key:'P_RUN',   name:'Line state', dir:'read', widget:'state', states:{0:'Stopped',1:'Running'},
+    plc:'0x100 (M100)', hmi:'PLC_RUN → P_RUN', sql:'P_RUN' },
+  { key:'P_SP',    name:'Active setpoint',  unit:'°C',  dec:1, dir:'read', widget:'kpi',
+    plc:'4x110 (D110, ×10)', hmi:'P_SP (set by operator or cloud)', sql:'P_SP' },
+  { key:'CMD_SP',  name:'Temperature setpoint', unit:'°C', dir:'write', widget:'number', min:0, max:100, step:0.1, ack:'P_SP',
+    plc:'4x110 (D110, ×10)', hmi:'CMD_SP → check → P_SP' },
+  { key:'CMD_RESET', name:'Reset part counter', dir:'write', widget:'button', value:1, confirm:true, ack:'P_COUNT', ackDrop:true,
+    plc:'0x101 (M101)', hmi:'CMD_RESET → check → PLC_RESET' },
+  { key:'ALM_ACTIVE', name:'Alarm active', dir:'read', widget:'alarm', topic:'alarm', plc:'', hmi:'Script: P_TEMP > ALM_LIMIT', sql:'ALM_ACTIVE' },
+  { key:'ALM_CODE',   name:'Alarm code',   dir:'read', widget:'alarm', topic:'alarm', plc:'', hmi:'101 = high temperature', sql:'' },
+  { key:'ALM_LIMIT',  name:'Alarm limit',  dir:'read', widget:'alarm', topic:'alarm', unit:'°C', plc:'', hmi:'ALM_LIMIT (default 29)', sql:'' },
+  { key:'REMOTE_EN',  name:'Remote control allowed', dir:'read', widget:'system', plc:'', hmi:'Button on HMI screen 1', sql:'' },
+  { key:'CMD_REJ',    name:'Rejected commands', dir:'read', widget:'system', plc:'', hmi:'Script counter', sql:'' },
+  { key:'SYS_HEALTH', name:'Link health bits',  dir:'read', widget:'system', plc:'', hmi:'1 MQTT · 2 SQL · 4 Web · 8 PLC · 16 Remote', sql:'' }
+];
+var ALARM_TEXT = { 101:'High oven temperature' };
+
 var Q = new URLSearchParams(location.search);
-var URL_ = Q.get('url') || 'wss://l9b0f47c.ala.asia-southeast1.emqxsl.com:8084/mqtt';
-var BASE = Q.get('base') || 'jct/iot/hmi01';
-var STALE_MS = 15000, KEEP_MS = 3600*1000;
-var $ = function(id){return document.getElementById(id)};
-var client = null, pts = [], lastMsg = 0, rangeMin = 5, lastSentSp = null, remoteEn = null, lastRej = null, rejAtSend = null;
-
-function store(k,v){try{ if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v);}catch(e){}}
-function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
-function ts(d){d=d||new Date();return d.toTimeString().slice(0,8)}
-function log(s){var li=document.createElement('li');li.textContent=ts()+'  '+s;var L=$('log');L.insertBefore(li,L.firstChild);while(L.children.length>60)L.removeChild(L.lastChild)}
-function fmt(v,d){return (typeof v==='number'&&isFinite(v))?v.toFixed(d):'–'}
-
-$('brokerLine').textContent = URL_.replace(/^wss?:\/\//,'').replace(/\/mqtt$/,'');
-$('foot').textContent = 'Broker ' + URL_ + ' · topics ' + BASE + '/telemetry, ' + BASE + '/cmd';
-
-// theme toggle
-(function(){var t=load('hmi01.theme'); if(t) document.documentElement.setAttribute('data-theme',t);})();
-$('btnTheme').onclick=function(){
-  var cur=document.documentElement.getAttribute('data-theme');
-  if(!cur){cur=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}
-  var nx=cur==='dark'?'light':'dark'; document.documentElement.setAttribute('data-theme',nx); store('hmi01.theme',nx); draw();
+var CFG = {
+  url:  Q.get('url')  || 'wss://l9b0f47c.ala.asia-southeast1.emqxsl.com:8084/mqtt',
+  base: Q.get('base') || 'jct/iot/hmi01',
+  line: Q.get('line') || 'Line 1 · Curing oven',
+  staleMs: 15000, keepMs: 3600e3
 };
+var FORCE_DEMO = !!window.FORCE_DEMO || Q.get('demo') === '1';
+var BY = {}; TAGS.forEach(function(t){ BY[t.key] = t; });
+var $ = function(id){ return document.getElementById(id); };
+var S = { mode:null, client:null, last:{}, lastMsg:0, hist:[], health:null, remote:null, rej:null,
+          pending:null, cloud:false, trendKey:'P_TEMP', rangeMin:5, alarm:null, almSince:0, almLimit:29, sel:'hmi', tagSel:null };
 
-// login
-var su=load('hmi01.u'), sp=load('hmi01.p');
-if(su){$('u').value=su;$('rem').checked=true} if(sp){$('p').value=sp}
-$('btnLogin').onclick=function(){
-  var u=$('u').value.trim(), p=$('p').value;
-  if(!u||!p){$('loginMsg').textContent='Enter username and password.';return}
-  if($('rem').checked){store('hmi01.u',u);store('hmi01.p',p)} else {store('hmi01.u',null);store('hmi01.p',null)}
-  connect(u,p);
+function store(k,v){ try{ v===null ? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(e){} }
+function load(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function hhmmss(t){ return new Date(t||Date.now()).toTimeString().slice(0,8); }
+function fmt(v,d){ return (typeof v==='number' && isFinite(v)) ? v.toFixed(d==null?1:d) : '–'; }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function css(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function log(s,cls){ var li=document.createElement('li'); if(cls) li.className=cls; li.innerHTML='<i>'+hhmmss()+'</i><span>'+esc(s)+'</span>';
+  var L=$('log'); L.insertBefore(li,L.firstChild); while(L.children.length>80) L.removeChild(L.lastChild); }
+
+/* ---------------- icons ---------------- */
+var IC = {
+  plc:'<svg class="ic" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="6" width="24" height="20" rx="2"/><path d="M9 6v20M14 6v20"/><circle cx="21" cy="12" r="1.6" fill="currentColor"/><circle cx="21" cy="17" r="1.6" fill="currentColor"/><path d="M18 22h6"/></svg>',
+  hmi:'<svg class="ic" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="26" height="18" rx="2"/><rect x="7" y="10" width="11" height="10" rx="1"/><path d="M21 11h4M21 15h4M21 19h4M12 28h8M16 24v4"/></svg>',
+  edge:'<svg class="ic" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="24" height="15" rx="2"/><path d="M2 25h28M11 20l-1 5M21 20l1 5"/><ellipse cx="16" cy="11" rx="5" ry="2"/><path d="M11 11v4c0 1.1 2.2 2 5 2s5-.9 5-2v-4"/></svg>',
+  cloud:'<svg class="ic" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 24h15a5 5 0 0 0 .6-10A8 8 0 0 0 9.3 12.5 5.8 5.8 0 0 0 9 24z"/><path d="M13 19h6M16 16v6"/></svg>',
+  app:'<svg class="ic" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="14" height="26" rx="3"/><path d="M14 25h4"/><path d="M12 15l3-3 2 2 3-4"/></svg>'
 };
-$('p').addEventListener('keydown',function(e){if(e.key==='Enter')$('btnLogin').click()});
-$('btnLogout').onclick=function(){ if(client){client.end(true)} client=null; store('hmi01.p',null); $('p').value='';
-  $('dashView').classList.add('hidden'); $('loginView').classList.remove('hidden'); };
+var NODES = [
+  { id:'plc',   name:'PLC',         sub:'Machine controller' },
+  { id:'hmi',   name:'HMI IT7150E', sub:'Operator panel · 192.168.5.36' },
+  { id:'edge',  name:'Edge PC',     sub:'MQTT relay + SQL · 192.168.5.3' },
+  { id:'cloud', name:'Cloud broker', sub:'EMQX · Singapore' },
+  { id:'app',   name:'Phone / PC',  sub:'This dashboard' }
+];
+var LINKS = [
+  { id:'l1', a:'RS485', b:'Modbus RTU' },
+  { id:'l2', a:'Ethernet LAN', b:'MQTT :1883' },
+  { id:'l3', a:'Internet', b:'MQTT + TLS :8883' },
+  { id:'l4', a:'Internet', b:'WebSocket + TLS :8084' }
+];
 
-function setBroker(state,txt){var d=$('dotBroker');d.className='dot '+state;$('txtBroker').textContent=txt}
-
-function connect(u,p){
-  $('loginMsg').textContent='Connecting…';
-  if(client){client.end(true)}
-  client = mqtt.connect(URL_, {username:u,password:p,clientId:'jct-dash-'+Math.random().toString(16).slice(2,8),
-    reconnectPeriod:3000, connectTimeout:10000, clean:true});
-  var first=true;
-  client.on('connect',function(){
-    setBroker('good','Broker connected'); log('broker connected');
-    client.subscribe(BASE+'/telemetry',{qos:1}); client.subscribe(BASE+'/alarm',{qos:1});
-    if(first){first=false;$('loginView').classList.add('hidden');$('dashView').classList.remove('hidden');draw()}
+/* ---------------- system map ---------------- */
+var maps = [];
+function buildMap(el){
+  var big = el.hasAttribute('data-big'), h='';
+  NODES.forEach(function(n,i){
+    h += '<button class="node" data-n="'+n.id+'" type="button">'+IC[n.id]+'<b>'+n.name+'</b><span class="sub">'+n.sub+'</span>'+
+         '<span class="st"><span class="dot" data-ndot></span><span data-nst>–</span></span>'+
+         (n.id==='hmi' ? '<span class="chip" data-remote>REMOTE ?</span>' : '')+
+         (n.id==='edge' ? '<span class="chip" data-sql>SQL ?</span>' : '')+'</button>';
+    if(i<LINKS.length){ var l=LINKS[i];
+      h += '<div class="link" data-l="'+l.id+'"><span class="lbl la">'+l.a+'</span><div class="wire"></div><span class="lbl">'+l.b+'</span></div>'; }
   });
-  client.on('reconnect',function(){setBroker('warning','Reconnecting…')});
-  client.on('offline',function(){setBroker('critical','Broker offline')});
-  client.on('error',function(e){
-    var m=(e&&e.message)||String(e); log('error: '+m);
-    if(first){$('loginMsg').textContent='Could not connect: '+m; client.end(true)}
-  });
-  client.on('message',function(t,buf){
-    var d; try{d=JSON.parse(buf.toString())}catch(e){log('bad JSON on '+t);return}
-    if(t===BASE+'/alarm'){onAlarm(d,arguments[2]&&arguments[2].retain)} else onTele(d);
-  });
+  el.innerHTML = h;
+  Array.prototype.forEach.call(el.querySelectorAll('.node'),function(b){ b.onclick=function(){ selectNode(b.dataset.n, !big); }; });
+  maps.push(el);
+}
+function eachMap(sel,fn){ maps.forEach(function(m){ Array.prototype.forEach.call(m.querySelectorAll(sel),fn); }); }
+function setLink(id,cls){ eachMap('[data-l="'+id+'"]',function(e){ e.classList.remove('good','warn','bad'); if(cls) e.classList.add(cls); }); }
+function setNode(id,cls,txt){ eachMap('[data-n="'+id+'"]',function(e){ e.querySelector('[data-ndot]').className='dot '+(cls||''); e.querySelector('[data-nst]').textContent=txt; }); }
+function chip(sel,on,txtOn,txtOff){ eachMap(sel,function(e){ e.className='chip '+(on===null?'':(on?'on':'off')); e.textContent=on===null?txtOff.replace(/ .*/,' ?'):(on?txtOn:txtOff); }); }
+function flash(id,good){ eachMap('[data-n="'+id+'"]',function(e){ e.classList.remove('flash-good','flash-bad'); void e.offsetWidth; e.classList.add(good?'flash-good':'flash-bad'); }); }
+function hop(id,cmd){ eachMap('[data-l="'+id+'"] .wire',function(w){ var p=document.createElement('i'); p.className='pkt'+(cmd?' cmd':''); w.appendChild(p); setTimeout(function(){ p.remove(); },800); }); }
+function path(ids,cmd,done){ var i=0; (function nx(){ if(i>=ids.length){ if(done) done(); return; } hop(ids[i++],cmd); setTimeout(nx,720); })(); }
+function selectNode(id,jump){
+  S.sel=id; eachMap('.node',function(e){ e.classList.toggle('sel', e.dataset.n===id); });
+  renderDetail();
+  if(jump){ showTab('how'); setTimeout(function(){ $('nodeDetail').scrollIntoView({behavior:'smooth',block:'start'}); },60); }
 }
 
-function onTele(d){
-  var now=Date.now(); lastMsg=now;
-  var p={t:now,temp:+d.P_TEMP,count:+d.P_COUNT,run:+d.P_RUN,sp:(d.P_SP!==undefined?+d.P_SP:null)};
-  pts.push(p); while(pts.length&&pts[0].t<now-KEEP_MS)pts.shift();
-  $('vTemp').textContent=fmt(p.temp,1);
-  $('vCount').textContent=isFinite(p.count)?p.count:'–';
-  var run=p.run===1; $('vRun').textContent=run?'Running':'Stopped'; $('dotRun').className='dot '+(run?'good':'warning');
-  if(p.sp!==null&&isFinite(p.sp)){$('vSp').textContent=fmt(p.sp,1);
-    if(lastSentSp!==null){ if(Math.abs(p.sp-lastSentSp)<0.01){$('ctlMsg').textContent='HMI applied setpoint '+fmt(p.sp,1);lastSentSp=null} }
-  } else { $('vSpSub').textContent='P_SP not published by HMI' }
-  health(d);
-  table(); draw(); hmiState();
-}
-function health(d){
-  if(d.SYS_HEALTH===undefined){$('healthRow').classList.add('hidden');return}
-  var h=+d.SYS_HEALTH|0; function set(id,ok){$(id).className='dot '+(ok?'good':'critical')}
-  set('hDb',h&2); set('hWeb',h&4); set('hPlc',h&8);
-  remoteEn=(d.REMOTE_EN!==undefined?+d.REMOTE_EN:((h&16)?1:0))===1;
-  $('hRem').className='dot '+(remoteEn?'good':'warning'); $('tRem').textContent=remoteEn?'Remote enabled':'Remote disabled on HMI';
-  ['btnSp','btnReset','spIn'].forEach(function(i){$(i).disabled=!remoteEn});
-  if(!remoteEn)$('ctlMsg').textContent='Operator has remote control switched OFF on the HMI.';
-  else if($('ctlMsg').textContent.indexOf('switched OFF')>=0)$('ctlMsg').textContent='';
-  if(d.CMD_REJ!==undefined){var r=+d.CMD_REJ; $('vRej').textContent=r;
-    if(rejAtSend!==null&&r>rejAtSend){$('ctlMsg').textContent='HMI REJECTED the command (remote off or out of range).';log('HMI rejected command');lastSentSp=null;rejAtSend=null}
-    lastRej=r}
+/* node detail text */
+var DETAIL = {
+  plc:{ t:'PLC · the machine controller', d:'Measures the oven temperature, counts finished parts and runs the line. It knows nothing about the internet: it only talks to the HMI.',
+        kv:[['Link to HMI','RS485 · Modbus RTU · 19200 8E1 · station 1'],['Temperature','4x100 (D100) = °C × 10'],['Heartbeat','4x101 (D101) — HMI checks it changes'],['Part counter','4x102 (D102, Int32)'],['Setpoint','4x110 (D110) = °C × 10'],['Run / reset','0x100 (M100) / 0x101 (M101)']],
+        note:'No PLC connected on the demo bench: the HMI notices the missing heartbeat and simulates the values, so the rest of the chain can still be shown.' },
+  hmi:{ t:'HMI · Inovance IT7150E', d:'The bridge between machine and cloud. Reads the PLC, scales values, decides what goes out, and guards every command before it reaches the PLC.',
+        kv:[['Publishes','jct/iot/hmi01/telemetry every 5 s (JSON)'],['Alarms','jct/iot/hmi01/alarm on change, retained'],['Listens to','jct/iot/hmi01/cmd'],['Cloud login','hmi01 (own user)'],['SQL history','one row per minute to IOTHIST'],['Network','192.168.5.36 · DHCP from router']],
+        note:'Remote control is OFF after every power-up. The operator switches it ON with the button on screen 1. The HMI also refuses values outside 0–100.' },
+  edge:{ t:'Edge PC · relay and history', d:'An ordinary Windows PC on the same network. It does two jobs: it forwards the HMI\'s MQTT traffic to the cloud over an encrypted link, and it stores the history in SQL Server.',
+        kv:[['MQTT relay','listens on 192.168.5.3:1883 → cloud :8883 (TLS)'],['Why a relay','this HMI cannot look up internet names (DNS)'],['SQL Server','SQLEXPRESS01 · DB hmi_test · table IOTHIST'],['Reports','HMI screen 2 (last hour) · daily CSV export'],['Starts','automatically at Windows logon']],
+        note:'Keep this PC on and give it a fixed address in the router. If it sleeps, the HMI keeps running but stops sending to the cloud.' },
+  cloud:{ t:'Cloud broker · EMQX Serverless', d:'A post office for messages. Devices never connect to each other directly: each one connects out to the broker, which forwards each message to whoever subscribed to its topic.',
+        kv:[['Address','l9b0f47c.ala.asia-southeast1.emqxsl.com'],['Ports','8883 MQTT/TLS · 8084 WebSocket/TLS'],['Certificate','DigiCert Global Root G2 (valid to 2038)'],['Users','hmi01 (machine) · pc01 (dashboard)'],['Rights','per user and topic, everything else denied']],
+        note:'No port is opened at the factory. All connections go outward, so the plant firewall stays closed.' },
+  app:{ t:'Phone / PC · this dashboard', d:'A single web page. It works in any browser, on the phone or on a PC, and connects to the broker with its own login.',
+        kv:[['Address','zealbhavin-debug.github.io/hmi01-dashboard'],['Reads','telemetry + alarm topics'],['Writes','cmd topic only'],['Login','pc01 (dashboard user)'],['Customise','edit the TAGS list at the top of the script']],
+        note:'Every command is shown as "Sent", then "Applied" or "Rejected" from the HMI\'s own answer, so you always know what really happened at the machine.' }
+};
+function renderDetail(){
+  var D=DETAIL[S.sel]; if(!D) return;
+  var kv=D.kv.map(function(r){ return '<dt>'+esc(r[0])+'</dt><dd>'+esc(r[1])+'</dd>'; }).join('');
+  $('nodeDetail').innerHTML = '<div><span class="eyebrow">Selected part</span><h3 style="font-size:22px;margin-top:2px">'+esc(D.t)+'</h3><p class="sec" style="margin:6px 0 0;max-width:62ch">'+esc(D.d)+'</p>'+
+    '<p style="margin:10px 0 0;font-size:13.5px;padding:10px 12px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line)">'+esc(D.note)+'</p></div>'+
+    '<div><span class="eyebrow">Settings</span><dl class="kv">'+kv+'</dl></div>';
 }
 
-var ALM_TEXT={101:'High temperature'}, almOn=null, almSince=0, almLimit=29; // HMI default; updated when ALM_LIMIT is published
-function onAlarm(d,retained){
-  var on=+d.ALM_ACTIVE===1, code=+d.ALM_CODE||0; if(isFinite(+d.ALM_LIMIT))almLimit=+d.ALM_LIMIT;
-  var lastTemp=pts.length?pts[pts.length-1].temp:null, prev=almOn;
-  if(on&&prev!==true)almSince=Date.now();
-  almOn=on;
-  if(on){ $('almBox').className='alm on'; $('almIco').textContent='⚠';
-    $('almTitle').textContent='ALARM '+code+' · '+(ALM_TEXT[code]||'Alarm');
-  } else { $('almBox').className='alm off'; $('almIco').textContent='✓'; $('almTitle').textContent='No active alarm'; }
+/* ---------------- tag map ---------------- */
+function tagRoute(t){
+  var viaPlc = !!t.plc;
+  if(t.dir==='write') return viaPlc ? ['l4','l3','l2','l1'] : ['l4','l3','l2'];
+  return viaPlc ? ['l1','l2','l3','l4'] : ['l2','l3','l4'];
+}
+function renderTagTable(){
+  var h='<tr><th>Shown as</th><th>Tag / JSON key</th><th>Direction</th><th>PLC</th><th>In the HMI</th><th>Topic</th><th>SQL column</th></tr>';
+  TAGS.forEach(function(t){
+    h+='<tr class="tag" data-k="'+t.key+'"><td>'+esc(t.name)+(t.unit?' <span class="muted">('+esc(t.unit)+')</span>':'')+'</td><td class="mono">'+t.key+'</td>'+
+       '<td>'+(t.dir==='write'?'<span class="dir w">WRITE ↓</span>':'<span class="dir r">READ ↑</span>')+'</td>'+
+       '<td class="mono">'+esc(t.plc||'—')+'</td><td class="mono">'+esc(t.hmi||'')+'</td><td class="mono">'+(t.dir==='write'?'cmd':(t.topic||'telemetry'))+'</td><td class="mono">'+esc(t.sql||'—')+'</td></tr>';
+  });
+  $('tagTbl').innerHTML=h;
+  Array.prototype.forEach.call($('tagTbl').querySelectorAll('tr.tag'),function(r){ r.onclick=function(){ selectTag(r.dataset.k); }; });
+}
+function selectTag(k){
+  var t=BY[k]; S.tagSel=k;
+  Array.prototype.forEach.call($('tagTbl').querySelectorAll('tr.tag'),function(r){ r.classList.toggle('sel',r.dataset.k===k); });
+  eachMap('.link',function(e){ e.classList.remove('hl','hlw'); });
+  var route=tagRoute(t), w=t.dir==='write';
+  route.forEach(function(id){ eachMap('[data-l="'+id+'"]',function(e){ e.classList.add(w?'hlw':'hl'); }); });
+  path(route,w);
+  var topic=CFG.base+'/'+(w?'cmd':(t.topic||'telemetry'));
+  var steps = w
+    ? ['Dashboard: '+t.name, 'publish {"'+t.key+'": …}', topic, 'Cloud → Edge PC → HMI', 'HMI tag '+t.key, 'check Remote ON + range', t.plc?('PLC '+t.plc):'HMI tag '+(t.ack||'')]
+    : [t.plc?('PLC '+t.plc):'HMI script', 'HMI '+(t.hmi||t.key), 'JSON key "'+t.key+'"', topic, 'Edge PC → Cloud', 'Dashboard: '+t.name];
+  $('journey').innerHTML='<div class="eyebrow" style="width:100%">Route of '+esc(t.key)+'</div>'+steps.map(function(s,i){ return (i?'<em>→</em>':'')+'<span class="'+(w?'w':'')+'">'+esc(s)+'</span>'; }).join('');
+}
+
+/* ---------------- live widgets ---------------- */
+function kpiTags(){ return TAGS.filter(function(t){ return t.dir==='read' && (t.widget==='kpi'||t.widget==='state'); }); }
+function renderKpis(){
+  var h='';
+  kpiTags().forEach(function(t){
+    h+='<div class="panel kpi" data-kpi="'+t.key+'"><div class="name"><span>'+esc(t.name)+'</span><span class="mono">'+t.key+'</span></div>';
+    if(t.widget==='state') h+='<div class="val"><span class="state" data-v><span class="lamp"></span><span>–</span></span></div>';
+    else h+='<div class="val"><span data-v>–</span>'+(t.unit?'<small>'+esc(t.unit)+'</small>':'')+'</div>';
+    h+=(t.spark?'<canvas data-spark></canvas>':'')+'<div class="foot" data-f>&nbsp;</div></div>';
+  });
+  $('kpis').innerHTML=h;
+  var seg='';
+  TAGS.filter(function(t){ return t.trend; }).forEach(function(t,i){ seg+='<button data-k="'+t.key+'"'+(t.key===S.trendKey?' class="on"':'')+'>'+esc(t.name)+'</button>'; });
+  $('trendSel').innerHTML=seg;
+  Array.prototype.forEach.call($('trendSel').children,function(b){ b.onclick=function(){ S.trendKey=b.dataset.k; Array.prototype.forEach.call($('trendSel').children,function(x){ x.classList.toggle('on',x===b); }); draw(); }; });
+}
+function renderWrites(){
+  var h='';
+  TAGS.filter(function(t){ return t.dir==='write'; }).forEach(function(t){
+    h+='<div class="wctl" data-w="'+t.key+'"><div class="lab"><span>'+esc(t.name)+(t.widget==='number'?' <span class="muted">('+t.min+' – '+t.max+(t.unit?' '+esc(t.unit):'')+')</span>':'')+'</span><span class="mono muted">'+t.key+'</span></div><div class="ctl">';
+    if(t.widget==='number') h+='<input type="number" id="in_'+t.key+'" min="'+t.min+'" max="'+t.max+'" step="'+(t.step||1)+'" placeholder="e.g. '+(t.min+(t.max-t.min)*0.4)+'" style="width:130px"><button class="btn cmd" data-send="'+t.key+'">Send</button>';
+    else h+='<button class="btn ghost" data-send="'+t.key+'">'+esc(t.name)+'</button><button class="btn danger hidden" data-yes="'+t.key+'">Yes, do it</button><button class="btn ghost hidden" data-no="'+t.key+'">Cancel</button>';
+    h+='</div></div>';
+  });
+  $('writeCtls').innerHTML=h;
+  Array.prototype.forEach.call($('writeCtls').querySelectorAll('[data-send]'),function(b){ b.onclick=function(){
+    var t=BY[b.dataset.send];
+    if(t.widget==='number'){ var v=parseFloat($('in_'+t.key).value);
+      if(!isFinite(v)||v<t.min||v>t.max){ ctlMsg('Enter a value between '+t.min+' and '+t.max+'.','warn'); return; }
+      send(t,v); }
+    else if(t.confirm){ confirmRow(t.key,true); } else send(t,t.value);
+  }; });
+  Array.prototype.forEach.call($('writeCtls').querySelectorAll('[data-yes]'),function(b){ b.onclick=function(){ confirmRow(b.dataset.yes,false); var t=BY[b.dataset.yes]; send(t,t.value); }; });
+  Array.prototype.forEach.call($('writeCtls').querySelectorAll('[data-no]'),function(b){ b.onclick=function(){ confirmRow(b.dataset.no,false); }; });
+}
+function confirmRow(k,show){ var r=document.querySelector('[data-w="'+k+'"]'); r.querySelector('[data-send]').classList.toggle('hidden',show); r.querySelector('[data-yes]').classList.toggle('hidden',!show); r.querySelector('[data-no]').classList.toggle('hidden',!show); }
+function ctlMsg(s,cls){ var m=$('ctlMsg'); m.textContent=s; m.className='msg '+(cls||''); }
+function setWritesEnabled(on){ Array.prototype.forEach.call($('writeCtls').querySelectorAll('input,button'),function(e){ e.disabled=!on; }); }
+
+/* ---------------- incoming data ---------------- */
+function onTele(d,topic){
+  var now=Date.now(); S.lastMsg=now; S.last=Object.assign(S.last,d);
+  var rec={t:now}; Object.keys(d).forEach(function(k){ var v=+d[k]; if(isFinite(v)) rec[k]=v; });
+  S.hist.push(rec); while(S.hist.length && S.hist[0].t<now-CFG.keepMs) S.hist.shift();
+  $('lastTopic').textContent=topic||CFG.base+'/telemetry';
+  $('lastJson').innerHTML='{\n'+Object.keys(d).map(function(k){ return '  <span class="k">"'+esc(k)+'"</span>: '+esc(JSON.stringify(d[k])); }).join(',\n')+'\n}';
+  kpiTags().forEach(function(t){
+    if(d[t.key]===undefined) return; var el=document.querySelector('[data-kpi="'+t.key+'"]'), v=+d[t.key];
+    if(t.widget==='state'){ var s=el.querySelector('[data-v]'); s.className='state '+(v===1?'run':'stop'); s.lastChild.textContent=(t.states&&t.states[v])||v; }
+    else el.querySelector('[data-v]').textContent=fmt(v,t.dec);
+    var f=el.querySelector('[data-f]');
+    if(t.rate){ var r=rate(t.key); f.textContent=r===null?'rate: measuring…':fmt(r,1)+' pcs/min'; }
+    else if(t.key==='P_TEMP'){ f.textContent='alarm above '+fmt(S.almLimit,1)+' °C'; }
+    else if(t.key==='P_SP'){ f.textContent='HMI is controlling to this value'; }
+    if(t.spark) spark(el.querySelector('[data-spark]'),t.key);
+  });
+  more(d);
+  if(d.SYS_HEALTH!==undefined) health(+d.SYS_HEALTH|0, d);
+  checkPending(d);
+  path(S.health!==null && (S.health&8) ? ['l1','l2','l3','l4'] : ['l2','l3','l4'], false);
+  hmiState(); table(); draw();
+}
+function rate(k){ var h=S.hist.filter(function(r){ return r[k]!==undefined; }); if(h.length<3) return null;
+  var a=h[0], b=h[h.length-1]; for(var i=h.length-1;i>=0;i--){ if(b.t-h[i].t>=60000){ a=h[i]; break; } }
+  if(b.t-a.t<8000 || b[k]<a[k]) return null; return (b[k]-a[k])/((b.t-a.t)/60000); }
+function more(d){
+  var extra=Object.keys(d).filter(function(k){ return !BY[k] && k.charAt(0)!=='_'; });
+  if(!extra.length) return; $('moreBox').classList.remove('hidden');
+  extra.forEach(function(k){ var el=document.querySelector('[data-more="'+k+'"]');
+    if(!el){ el=document.createElement('div'); el.className='panel kpi'; el.dataset.more=k; el.innerHTML='<div class="name"><span>'+esc(k)+'</span><span class="mono">auto</span></div><div class="val" data-v>–</div>'; $('more').appendChild(el); }
+    var v=d[k]; el.querySelector('[data-v]').textContent=typeof v==='number'?(Number.isInteger(v)?v:v.toFixed(2)):String(v); });
+}
+function health(h,d){
+  S.health=h;
+  var plc=!!(h&8), sql=!!(h&2);
+  setLink('l1', plc?'good':'warn'); setNode('plc', plc?'good':'warn', plc?'Modbus OK':'Not connected · HMI simulates');
+  chip('[data-sql]', sql, 'SQL ✓', 'SQL ✗');
+  S.remote = (d.REMOTE_EN!==undefined ? +d.REMOTE_EN : ((h&16)?1:0)) === 1;
+  chip('[data-remote]', S.remote, 'REMOTE ON', 'REMOTE OFF');
+  var lb=$('lockBox'); lb.className='lock '+(S.remote?'on':'off');
+  $('lockDot').className='dot '+(S.remote?'good':'warn');
+  $('lockTitle').textContent=S.remote?'Remote control is ON at the machine':'Remote control is OFF at the machine';
+  $('lockSub').textContent=S.remote?'Commands from this page will be checked and applied by the HMI.':'Ask the operator to press "Remote OFF" on the HMI to switch it ON. Until then every command is refused.';
+  setWritesEnabled(S.remote);
+  $('btnDemoRemote').textContent=S.remote?'Press "Remote ON" again (switch OFF)':'Press "Remote OFF" on HMI (switch ON)';
+  if(d.CMD_REJ!==undefined){ S.rej=+d.CMD_REJ; $('vRej').textContent=S.rej; }
+}
+function hmiState(){
+  var age=S.lastMsg?Date.now()-S.lastMsg:null, fresh=age!==null&&age<CFG.staleMs;
+  $('dHmi').className='dot '+(age===null?'':(fresh?'good':'bad'));
+  $('tHmi').textContent=age===null?'HMI: waiting':(fresh?'HMI online · '+Math.round(age/1000)+' s ago':'HMI silent · '+Math.round(age/1000)+' s');
+  setLink('l2', age===null?null:(fresh?'good':'bad')); setLink('l3', age===null?null:(fresh?'good':'bad'));
+  setNode('hmi', age===null?'':(fresh?'good':'bad'), age===null?'waiting for data':(fresh?'sending every 5 s':'no data for '+Math.round(age/1000)+' s'));
+  setNode('edge', age===null?'':(fresh?'good':'bad'), fresh?'relay passing data':(age===null?'–':'no data through relay'));
+}
+setInterval(function(){ if(S.mode) hmiState(); },1000);
+function cloudState(ok,txt){ S.cloud=ok; $('dCloud').className='dot '+(ok?'good':'bad'); $('tCloud').textContent=txt;
+  setLink('l4', ok?'good':'bad'); setNode('cloud', ok?'good':'bad', ok?'connected':'not reachable'); setNode('app','good', S.mode==='demo'?'demo mode':'logged in'); }
+
+/* alarms */
+function onAlarm(d){
+  if(isFinite(+d.ALM_LIMIT)) S.almLimit=+d.ALM_LIMIT;
+  if(d.ALM_ACTIVE===undefined) return;
+  var on=+d.ALM_ACTIVE===1, code=+d.ALM_CODE||0, prev=S.alarm;
+  if(on && prev!==true) S.almSince=Date.now();
+  S.alarm=on;
+  $('almBox').className='alarm'+(on?' on':''); $('almDot').className='dot '+(on?'bad':'good');
+  $('almTitle').innerHTML=on?'<span class="big">ALARM '+code+'</span> · '+esc(ALARM_TEXT[code]||'Alarm'):'No active alarm';
   almSub();
-  if(prev===null||on!==prev){
-    var txt=(prev===null?(on?'ACTIVE ':'NORMAL'):(on?'RAISED ':'CLEARED'))+(on?(code+' '+(ALM_TEXT[code]||'')):'')+(lastTemp!==null?' · '+fmt(lastTemp,1)+' °C':'')+(prev===null&&retained?' (state on connect)':'');
-    var L=$('almLog'); if(L.firstChild&&L.firstChild.textContent==='No alarms yet')L.innerHTML='';
-    var li=document.createElement('li'); li.textContent=ts()+'  '+txt; L.insertBefore(li,L.firstChild);
-    while(L.children.length>50)L.removeChild(L.lastChild);
-    log('alarm '+txt); if(on||prev!==null)notify(on,code,lastTemp);
-  }
+  if(prev!==null && prev!==on){ log(on?('ALARM '+code+' raised · '+(ALARM_TEXT[code]||'')):'Alarm cleared', on?'bad':'good'); notify(on,code); }
   draw();
 }
-function almSub(){
-  var lim=almLimit!==null?'limit '+fmt(almLimit,1)+' °C':'';
-  if(almOn){ var s=Math.round((Date.now()-almSince)/1000); $('almSub').textContent='Active for '+(s<60?s+' s':Math.floor(s/60)+' min '+(s%60)+' s')+(lim?' · '+lim:'') }
-  else $('almSub').textContent=lim?('Monitoring · '+lim):'Monitoring';
+function almSub(){ var lim='limit '+fmt(S.almLimit,1)+' °C';
+  if(S.alarm){ var s=Math.round((Date.now()-S.almSince)/1000); $('almSub').textContent='Active for '+(s<60?s+' s':Math.floor(s/60)+' min '+(s%60)+' s')+' · '+lim; }
+  else $('almSub').textContent='Monitoring oven temperature · '+lim; }
+setInterval(function(){ if(S.alarm) almSub(); },1000);
+function notify(on,code){
+  try{ if(navigator.vibrate && on) navigator.vibrate([300,150,300]); }catch(e){}
+  try{ if(window.Notification && Notification.permission==='granted') new Notification(on?'ALARM '+code+' · '+(ALARM_TEXT[code]||''):'Alarm cleared',{body:CFG.line,tag:'jct-alarm',renotify:true}); }catch(e){}
 }
-setInterval(function(){if(almOn)almSub()},1000);
-function notify(on,code,temp){
-  try{ if(navigator.vibrate&&on)navigator.vibrate([300,150,300]); }catch(e){}
-  try{ if(window.Notification&&Notification.permission==='granted'){
-    var body=on?((ALM_TEXT[code]||'Alarm')+(temp!==null?' – '+fmt(temp,1)+' °C':'')):'Alarm cleared';
-    new Notification(on?'HMI01 ALARM '+code:'HMI01 alarm cleared',{body:body,tag:'hmi01-alarm',renotify:true});
-  }}catch(e){ log('notification not shown: '+e.message) }
+$('btnNotify').onclick=function(){ if(!window.Notification){ $('btnNotify').textContent='Not supported'; return; }
+  Notification.requestPermission().then(function(p){ $('btnNotify').textContent=p==='granted'?'Alerts on':'Alerts blocked'; }); };
+
+/* ---------------- commands ---------------- */
+function send(t,v){
+  var payload={}; payload[t.key]=v;
+  var base = t.ack && S.last[t.ack]!==undefined ? +S.last[t.ack] : null;
+  S.pending={key:t.key,v:v,t:Date.now(),rej:S.rej,ack:t.ack,base:base,drop:!!t.ackDrop,name:t.name};
+  ctlMsg('Sending '+t.name+(t.widget==='number'?' = '+v:'')+' …','');
+  log('SENT '+JSON.stringify(payload),'cmd');
+  path(['l4','l3','l2'],true,function(){ setNode('hmi','warn','checking command…'); });
+  if(S.mode==='demo'){ demoCmd(payload); return; }
+  if(!S.client||!S.client.connected){ ctlMsg('Not connected to the cloud.','bad'); S.pending=null; return; }
+  S.client.publish(CFG.base+'/cmd',JSON.stringify(payload),{qos:1},function(err){
+    if(err){ ctlMsg('Send failed: '+err.message,'bad'); S.pending=null; }
+    else ctlMsg('Sent. Waiting for the HMI to confirm…',''); });
 }
-$('btnNotify').onclick=function(){
-  if(!window.Notification){$('btnNotify').textContent='Alerts not supported here';return}
-  Notification.requestPermission().then(function(p){ $('btnNotify').textContent=p==='granted'?'Alerts on':'Alerts blocked'; });
-};
-if(window.Notification&&Notification.permission==='granted')$('btnNotify').textContent='Alerts on';
-
-function hmiState(){
-  var d=$('dotHmi');
-  if(!lastMsg){d.className='dot';$('txtHmi').textContent='HMI: waiting for data';return}
-  var age=Date.now()-lastMsg;
-  if(age<STALE_MS){d.className='dot good';$('txtHmi').textContent='HMI online · '+Math.round(age/1000)+' s ago'}
-  else {d.className='dot critical';$('txtHmi').textContent='HMI silent · '+Math.round(age/1000)+' s'}
-}
-setInterval(hmiState,1000);
-
-function table(){
-  var rows=pts.slice(-20).reverse().map(function(p){return '<tr><td>'+ts(new Date(p.t))+'</td><td>'+fmt(p.temp,2)+'</td><td>'+p.count+'</td><td>'+(p.run===1?'Run':'Stop')+'</td></tr>'});
-  $('tbl').innerHTML=rows.join('');
+function checkPending(d){
+  var p=S.pending; if(!p) return;
+  if(Date.now()-p.t<1500) return;
+  if(d.CMD_REJ!==undefined && p.rej!==null && +d.CMD_REJ>p.rej){
+    ctlMsg('Refused by the HMI ('+(S.remote?'value out of range':'remote control is OFF')+').','bad'); log('HMI REFUSED '+p.key,'bad'); flash('hmi',false); S.pending=null; return; }
+  if(p.ack && d[p.ack]!==undefined){ var a=+d[p.ack];
+    var ok = p.drop ? (p.base!==null && a<p.base) : Math.abs(a-p.v)<0.01;
+    if(ok){ ctlMsg('Applied at the machine: '+p.name+(p.drop?'':' = '+fmt(a,1))+'.','good'); log('APPLIED '+p.key+(p.drop?'':' = '+a),'good'); flash('hmi',true);
+      if(S.health&8) path(['l1'],true); S.pending=null; return; } }
+  if(Date.now()-p.t>25000){ ctlMsg('No answer from the HMI within 25 s.','warn'); log('no answer for '+p.key,'bad'); S.pending=null; }
 }
 
-// controls
-$('btnSp').onclick=function(){
-  var v=parseFloat($('spIn').value);
-  if(!isFinite(v)||v<0||v>100){$('ctlMsg').textContent='Setpoint must be 0 – 100.';return}
-  if(!client||!client.connected){$('ctlMsg').textContent='Not connected.';return}
-  client.publish(BASE+'/cmd',JSON.stringify({CMD_SP:v}),{qos:1},function(err){
-    $('ctlMsg').textContent=err?('Send failed: '+err.message):('Sent setpoint '+v+' – waiting for HMI…');
-    if(!err){lastSentSp=v;rejAtSend=lastRej;log('sent CMD_SP '+v)}
-  });
-};
-function resetConfirm(show){['btnResetYes','btnResetNo'].forEach(function(i){$(i).classList.toggle('hidden',!show)});$('btnReset').classList.toggle('hidden',show)}
-$('btnReset').onclick=function(){resetConfirm(true)};
-$('btnResetNo').onclick=function(){resetConfirm(false)};
-$('btnResetYes').onclick=function(){
-  resetConfirm(false);
-  if(!client||!client.connected){$('ctlMsg').textContent='Not connected.';return}
-  client.publish(BASE+'/cmd',JSON.stringify({CMD_RESET:1}),{qos:1},function(err){
-    $('ctlMsg').textContent=err?('Send failed: '+err.message):'Counter reset sent.'; if(!err){rejAtSend=lastRej;log('sent CMD_RESET')}
-  });
-};
-
-// range
-Array.prototype.forEach.call($('range').children,function(b){b.onclick=function(){
-  Array.prototype.forEach.call($('range').children,function(x){x.classList.remove('on')}); b.classList.add('on'); rangeMin=+b.dataset.m; draw();}});
-
-// chart
-var cv=$('chart'), box=$('chartBox'), tip=$('tip'), hoverX=null, geo=null;
-function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
-function niceStep(span){var r=span/4,p=Math.pow(10,Math.floor(Math.log10(r))),m=r/p;return (m<1.5?1:m<3?2:m<7?5:10)*p}
+/* ---------------- chart ---------------- */
+var cv=$('chart'), box=$('chartBox'), tip=$('tip'), hoverX=null;
+function niceStep(span){ var r=span/4,p=Math.pow(10,Math.floor(Math.log10(r))),m=r/p; return (m<1.5?1:m<3?2:m<7?5:10)*p; }
 function draw(){
-  if($('dashView').classList.contains('hidden'))return;
-  var dpr=window.devicePixelRatio||1, W=box.clientWidth, H=box.clientHeight;
+  if(!S.mode || $('tab-live').classList.contains('hidden')) return;
+  var t=BY[S.trendKey]; $('trendTitle').textContent=t.name+(t.unit?' ('+t.unit+')':'');
+  var dpr=window.devicePixelRatio||1, W=box.clientWidth, H=box.clientHeight; if(!W) return;
   cv.width=W*dpr; cv.height=H*dpr; var c=cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,H);
-  var L=40,R=12,T=10,B=24, now=Date.now(), t0=now-rangeMin*60000;
-  var vis=pts.filter(function(p){return p.t>=t0&&isFinite(p.temp)});
-  var lo=20,hi=30; if(vis.length){lo=Math.min.apply(null,vis.map(function(p){return p.temp}));hi=Math.max.apply(null,vis.map(function(p){return p.temp}))}
-  if(almLimit!==null&&vis.length){hi=Math.max(hi,almLimit+0.5)}
-  if(hi-lo<2){var m=(hi+lo)/2;lo=m-1;hi=m+1}
+  var L=46,R=14,T=12,B=24, now=Date.now(), t0=now-S.rangeMin*60000, k=S.trendKey;
+  var vis=S.hist.filter(function(p){ return p.t>=t0 && p[k]!==undefined; });
+  var vals=vis.map(function(p){ return p[k]; }), lo=vals.length?Math.min.apply(null,vals):0, hi=vals.length?Math.max.apply(null,vals):10;
+  var showLim = k==='P_TEMP' && vis.length; if(showLim){ hi=Math.max(hi,S.almLimit+.5); lo=Math.min(lo,S.almLimit-1); }
+  if(hi-lo<2){ var m=(hi+lo)/2; lo=m-1; hi=m+1; }
   var st=niceStep(hi-lo); lo=Math.floor(lo/st)*st; hi=Math.ceil(hi/st)*st;
-  var x=function(t){return L+(t-t0)/(now-t0)*(W-L-R)}, y=function(v){return T+(hi-v)/(hi-lo)*(H-T-B)};
-  c.font='11px system-ui,sans-serif'; c.fillStyle=css('--text-muted'); c.strokeStyle=css('--grid'); c.lineWidth=1;
-  for(var v=lo;v<=hi+1e-9;v+=st){var yy=Math.round(y(v))+.5;c.beginPath();c.moveTo(L,yy);c.lineTo(W-R,yy);c.stroke();c.textAlign='right';c.textBaseline='middle';c.fillText(+v.toFixed(2),L-6,yy)}
-  c.textAlign='center';c.textBaseline='top';
-  var ticks=rangeMin<=5?[5,4,3,2,1,0]:rangeMin<=15?[15,10,5,0]:[60,45,30,15,0];
-  ticks.forEach(function(mn){var xx=x(now-mn*60000);c.fillText(mn?('-'+mn+'m'):'now',xx,H-B+6)});
-  if(vis.length<1){c.textAlign='center';c.textBaseline='middle';c.fillText('Waiting for data…',(L+W-R)/2,(T+H-B)/2);geo=null;return}
-  c.strokeStyle=css('--series-1'); c.lineWidth=2; c.lineJoin='round'; c.beginPath();
-  vis.forEach(function(p,i){var xx=x(p.t),yy=y(p.temp); i?c.lineTo(xx,yy):c.moveTo(xx,yy)}); c.stroke();
-  if(almLimit!==null&&almLimit>=lo&&almLimit<=hi){var ly=Math.round(y(almLimit))+.5;c.save();c.setLineDash([6,4]);c.strokeStyle=css('--critical');c.lineWidth=1;c.beginPath();c.moveTo(L,ly);c.lineTo(W-R,ly);c.stroke();c.restore();
-    c.fillStyle=css('--text-secondary');c.textAlign='left';c.textBaseline='bottom';c.fillText('Alarm limit '+fmt(almLimit,1),L+4,ly-2)}
-  var lp=vis[vis.length-1]; c.fillStyle=css('--series-1'); c.beginPath(); c.arc(x(lp.t),y(lp.temp),4,0,7); c.fill();
-  geo={vis:vis,x:x,y:y,L:L,R:R,T:T,B:B,W:W,H:H};
-  if(hoverX!==null){
-    var best=null,bd=1e9; vis.forEach(function(p){var dd=Math.abs(x(p.t)-hoverX); if(dd<bd){bd=dd;best=p}});
-    if(best){var bx=x(best.t),by=y(best.temp); c.strokeStyle=css('--text-muted'); c.lineWidth=1; c.beginPath(); c.moveTo(bx+.5,T); c.lineTo(bx+.5,H-B); c.stroke();
-      c.fillStyle=css('--surface-1'); c.beginPath(); c.arc(bx,by,6,0,7); c.fill(); c.fillStyle=css('--series-1'); c.beginPath(); c.arc(bx,by,4,0,7); c.fill();
-      tip.style.display='block'; tip.textContent=ts(new Date(best.t))+'  ·  '+fmt(best.temp,2)+' °C';
-      var tx=Math.min(Math.max(bx+10,0),W-tip.offsetWidth-4); tip.style.left=tx+'px'; tip.style.top=Math.max(by-34,0)+'px'}
+  var x=function(tt){ return L+(tt-t0)/(now-t0)*(W-L-R); }, y=function(v){ return T+(hi-v)/(hi-lo)*(H-T-B); };
+  c.font='11px '+css('--f-mono'); c.fillStyle=css('--ink-3'); c.strokeStyle=css('--grid'); c.lineWidth=1;
+  for(var v=lo; v<=hi+1e-9; v+=st){ var yy=Math.round(y(v))+.5; c.beginPath(); c.moveTo(L,yy); c.lineTo(W-R,yy); c.stroke(); c.textAlign='right'; c.textBaseline='middle'; c.fillText(+v.toFixed(2),L-7,yy); }
+  c.textAlign='center'; c.textBaseline='top';
+  var nar=W<520; (S.rangeMin<=5?(nar?[5,3,1,0]:[5,4,3,2,1,0]):S.rangeMin<=15?(nar?[15,5,0]:[15,10,5,0]):(nar?[60,30,0]:[60,45,30,15,0])).forEach(function(mn){ c.fillText(mn?('−'+mn+(nar?'m':' min')):'now',Math.min(Math.max(x(now-mn*60000),L+18),W-R-14),H-B+7); });
+  if(!vis.length){ c.textBaseline='middle'; c.fillText('Waiting for data…',(L+W-R)/2,(T+H-B)/2); return; }
+  var acc=css('--accent');
+  c.beginPath(); vis.forEach(function(p,i){ var xx=x(p.t),yy=y(p[k]); i?c.lineTo(xx,yy):c.moveTo(xx,yy); });
+  c.lineTo(x(vis[vis.length-1].t),H-B); c.lineTo(x(vis[0].t),H-B); c.closePath(); c.globalAlpha=.12; c.fillStyle=acc; c.fill(); c.globalAlpha=1;
+  c.strokeStyle=acc; c.lineWidth=2; c.lineJoin='round'; c.beginPath(); vis.forEach(function(p,i){ var xx=x(p.t),yy=y(p[k]); i?c.lineTo(xx,yy):c.moveTo(xx,yy); }); c.stroke();
+  if(showLim){ var ly=Math.round(y(S.almLimit))+.5; c.save(); c.setLineDash([6,4]); c.strokeStyle=css('--crit'); c.beginPath(); c.moveTo(L,ly); c.lineTo(W-R,ly); c.stroke(); c.restore();
+    c.fillStyle=css('--ink-2'); c.textAlign='left'; c.textBaseline='bottom'; c.fillText('alarm limit '+fmt(S.almLimit,1),L+6,ly-3); }
+  var lp=vis[vis.length-1]; c.fillStyle=css('--panel'); c.beginPath(); c.arc(x(lp.t),y(lp[k]),6,0,7); c.fill(); c.fillStyle=acc; c.beginPath(); c.arc(x(lp.t),y(lp[k]),4,0,7); c.fill();
+  if(hoverX!==null){ var best=null,bd=1e9; vis.forEach(function(p){ var dd=Math.abs(x(p.t)-hoverX); if(dd<bd){ bd=dd; best=p; } });
+    var bx=x(best.t),by=y(best[k]); c.strokeStyle=css('--ink-3'); c.beginPath(); c.moveTo(bx+.5,T); c.lineTo(bx+.5,H-B); c.stroke();
+    c.fillStyle=css('--panel'); c.beginPath(); c.arc(bx,by,6,0,7); c.fill(); c.fillStyle=acc; c.beginPath(); c.arc(bx,by,4,0,7); c.fill();
+    tip.style.display='block'; tip.textContent=hhmmss(best.t)+'  ·  '+fmt(best[k],t.dec==null?2:t.dec)+(t.unit?' '+t.unit:'');
+    tip.style.left=Math.min(Math.max(bx+10,0),W-tip.offsetWidth-4)+'px'; tip.style.top=Math.max(by-36,0)+'px';
   } else tip.style.display='none';
 }
-box.addEventListener('pointermove',function(e){var r=box.getBoundingClientRect();hoverX=e.clientX-r.left;draw()});
-box.addEventListener('pointerleave',function(){hoverX=null;draw()});
-window.addEventListener('resize',draw);
-setInterval(function(){if(hoverX===null)draw()},5000);
+function spark(cnv,k){ if(!cnv) return; var dpr=window.devicePixelRatio||1, W=cnv.clientWidth, H=cnv.clientHeight; if(!W) return;
+  cnv.width=W*dpr; cnv.height=H*dpr; var c=cnv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0);
+  var pts=S.hist.filter(function(p){ return p[k]!==undefined && p.t>Date.now()-300000; }); if(pts.length<2) return;
+  var vs=pts.map(function(p){ return p[k]; }), lo=Math.min.apply(null,vs), hi=Math.max.apply(null,vs); if(hi-lo<.5){ hi+=.25; lo-=.25; }
+  var t0=pts[0].t, t1=pts[pts.length-1].t, X=function(t){ return 2+(t-t0)/(t1-t0||1)*(W-6); }, Y=function(v){ return 3+(hi-v)/(hi-lo)*(H-6); };
+  c.strokeStyle=css('--accent'); c.lineWidth=1.6; c.beginPath(); pts.forEach(function(p,i){ i?c.lineTo(X(p.t),Y(p[k])):c.moveTo(X(p.t),Y(p[k])); }); c.stroke();
+  var lp=pts[pts.length-1]; c.fillStyle=css('--accent'); c.beginPath(); c.arc(X(lp.t),Y(lp[k]),2.6,0,7); c.fill(); }
+function table(){
+  var cols=kpiTags().map(function(t){ return t.key; });
+  var h='<tr><th>Time</th>'+cols.map(function(k){ return '<th style="text-align:right">'+esc(BY[k].name)+'</th>'; }).join('')+'</tr>';
+  S.hist.slice(-20).reverse().forEach(function(r){ h+='<tr><td class="mono">'+hhmmss(r.t)+'</td>'+cols.map(function(k){ var t=BY[k];
+    return '<td class="num">'+(r[k]===undefined?'–':(t.widget==='state'?((t.states||{})[r[k]]||r[k]):fmt(r[k],t.dec)))+'</td>'; }).join('')+'</tr>'; });
+  $('histTbl').innerHTML=h;
+}
+box.addEventListener('pointermove',function(e){ var r=box.getBoundingClientRect(); hoverX=e.clientX-r.left; draw(); });
+box.addEventListener('pointerleave',function(){ hoverX=null; draw(); });
+window.addEventListener('resize',function(){ draw(); });
+Array.prototype.forEach.call($('range').children,function(b){ b.onclick=function(){ Array.prototype.forEach.call($('range').children,function(x){ x.classList.toggle('on',x===b); }); S.rangeMin=+b.dataset.m; draw(); }; });
+setInterval(function(){ if(hoverX===null) draw(); },5000);
 
-if(Q.get('autologin')==='1' && su && sp){connect(su,sp)}
-window.__dash={pts:pts,onTele:onTele,onAlarm:onAlarm};
+/* ---------------- tabs, theme, copy ---------------- */
+function showTab(n){ ['live','how','add'].forEach(function(x){ $('tab-'+x).classList.toggle('hidden',x!==n); });
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(b){ b.classList.toggle('on',b.dataset.tab===n); b.setAttribute('aria-selected',b.dataset.tab===n); });
+  store('jct.tab',n); if(n==='live') setTimeout(draw,30); }
+Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(b){ b.onclick=function(){ showTab(b.dataset.tab); }; });
+(function(){ var t=load('hmi01.theme'); if(t) document.documentElement.setAttribute('data-theme',t); })();
+$('btnTheme').onclick=function(){ var cur=document.documentElement.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  var nx=cur==='dark'?'light':'dark'; document.documentElement.setAttribute('data-theme',nx); store('hmi01.theme',nx); draw(); };
+Array.prototype.forEach.call(document.querySelectorAll('[data-copy]'),function(b){ b.onclick=function(){ var txt=$(b.dataset.copy).textContent;
+  try{ navigator.clipboard.writeText(txt).then(function(){ b.textContent='Copied'; },function(){ sel(b.dataset.copy); }); }catch(e){ sel(b.dataset.copy); } }; });
+function sel(id){ var r=document.createRange(); r.selectNodeContents($(id)); var s=getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+/* ---------------- start ---------------- */
+function startApp(mode){
+  S.mode=mode; $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
+  $('modeTag').textContent=mode==='demo'?'Demo':'Live'; $('modeTag').className='mode'+(mode==='demo'?' demo':'');
+  $('demoOp').classList.toggle('hidden',mode!=='demo');
+  $('btnOut').textContent=mode==='demo'?'Exit demo':'Log out';
+  $('lineName').textContent=CFG.line+(mode==='demo'?' · simulated':'');
+  $('foot').textContent='Broker '+CFG.url+' · topics '+CFG.base+'/telemetry, /alarm, /cmd';
+  setNode('app','good',mode==='demo'?'demo mode':'logged in');
+  var t=load('jct.tab'); showTab(t==='how'||t==='add'?t:'live'); draw();
+}
+$('brokerLine').textContent='Cloud: '+CFG.url.replace(/^wss?:\/\//,'').replace(/\/mqtt$/,'');
+var su=load('hmi01.u'), sp=load('hmi01.p'); if(su){ $('u').value=su; $('rem').checked=true; } if(sp) $('p').value=sp;
+$('btnLogin').onclick=function(){ var u=$('u').value.trim(), p=$('p').value;
+  if(!u||!p){ $('loginMsg').textContent='Enter username and password.'; return; }
+  if($('rem').checked){ store('hmi01.u',u); store('hmi01.p',p); } else { store('hmi01.u',null); store('hmi01.p',null); }
+  connect(u,p); };
+$('p').addEventListener('keydown',function(e){ if(e.key==='Enter') $('btnLogin').click(); });
+$('btnDemo').onclick=function(){ startDemo(); };
+$('btnOut').onclick=function(){ if(S.client) S.client.end(true); S.client=null; stopDemo(); if(S.mode==='live'){ store('hmi01.p',null); $('p').value=''; }
+  S.mode=null; if(FORCE_DEMO){ startDemo(); return; } $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); };
+
+function connect(u,p){
+  if(!window.mqtt){ $('loginMsg').textContent='MQTT library missing in this copy. Use the demo.'; return; }
+  $('loginMsg').textContent='Connecting…'; if(S.client) S.client.end(true);
+  var first=true;
+  S.client=mqtt.connect(CFG.url,{username:u,password:p,clientId:'jct-dash-'+Math.random().toString(16).slice(2,8),reconnectPeriod:3000,connectTimeout:10000,clean:true});
+  S.client.on('connect',function(){ if(first){ first=false; startApp('live'); } cloudState(true,'Cloud connected'); log('connected to cloud broker','good');
+    S.client.subscribe(CFG.base+'/telemetry',{qos:1}); S.client.subscribe(CFG.base+'/alarm',{qos:1}); });
+  S.client.on('reconnect',function(){ if(!first) cloudState(false,'Reconnecting…'); });
+  S.client.on('offline',function(){ if(!first) cloudState(false,'Cloud offline'); });
+  S.client.on('error',function(e){ var m=(e&&e.message)||String(e); if(first){ $('loginMsg').textContent='Could not connect: '+m; S.client.end(true); } else log('error: '+m,'bad'); });
+  S.client.on('message',function(topic,buf){ var d; try{ d=JSON.parse(buf.toString()); }catch(e){ log('unreadable message on '+topic,'bad'); return; }
+    if(topic===CFG.base+'/alarm') onAlarm(d); else onTele(d,topic); });
+}
+
+/* ---------------- demo (simulated HMI, same rules as the real script) ---------------- */
+var D=null;
+function startDemo(){
+  stopDemo(); startApp('demo'); cloudState(true,'Cloud (simulated)');
+  D={t:0,count:812,sp:25,rem:0,rej:0,run:1,alm:0,temp:25,timer:null};
+  log('demo started · values are simulated','cmd');
+  onAlarm({ALM_ACTIVE:0,ALM_CODE:0,ALM_LIMIT:29});
+  demoTick(); D.timer=setInterval(demoTick,2500);
+}
+function stopDemo(){ if(D&&D.timer) clearInterval(D.timer); D=null; }
+function demoTick(){
+  if(!D) return; D.t+=2.5;
+  D.run=(D.t%300)<250?1:0;
+  if(D.run) D.count+=1+Math.round(Math.random()*2);
+  D.temp+=(D.sp-D.temp)*0.12; var temp=D.temp+4.2*Math.sin(D.t/22)+(Math.random()-.5)*.4;
+  var h=1+2+(D.rem?16:0);
+  onTele({P_TEMP:+temp.toFixed(3),P_COUNT:D.count,P_RUN:D.run,P_SP:D.sp,REMOTE_EN:D.rem,CMD_REJ:D.rej,SYS_HEALTH:h});
+  var lim=29; if(!D.alm && temp>lim){ D.alm=1; onAlarm({ALM_ACTIVE:1,ALM_CODE:101}); } else if(D.alm && temp<lim-.5){ D.alm=0; onAlarm({ALM_ACTIVE:0,ALM_CODE:0}); }
+}
+function demoCmd(p){
+  setTimeout(function(){ if(!D) return;
+    var ok=D.rem===1;
+    if('CMD_SP' in p){ if(ok && p.CMD_SP>=0 && p.CMD_SP<=100) D.sp=p.CMD_SP; else D.rej++; }
+    if('CMD_RESET' in p){ if(ok) D.count=0; else D.rej++; }
+    demoTick(); },2300);
+}
+$('btnDemoRemote').onclick=function(){ if(!D) return; D.rem=D.rem?0:1; log('operator pressed the Remote button on the HMI → '+(D.rem?'ON':'OFF'),'cmd'); demoTick(); };
+
+/* ---------------- init ---------------- */
+document.querySelectorAll('[data-map]').forEach(buildMap);
+renderKpis(); renderWrites(); renderTagTable(); selectNode('hmi',false); selectTag('P_TEMP');
+setWritesEnabled(false); hmiState();
+if(FORCE_DEMO) startDemo();
+else if(Q.get('autologin')==='1' && su && sp) connect(su,sp);
+window.__jct={S:S,onTele:onTele,onAlarm:onAlarm,TAGS:TAGS};
 })();
 </script>
+
 </body>
 </html>
